@@ -8,14 +8,14 @@ from sqlalchemy.orm import sessionmaker
 # Ensure the instance folder exists
 os.makedirs('instance', exist_ok=True)
 
-# SQLite database URL
-SQLALCHEMY_DATABASE_URL = "sqlite:///./instance/fairmont.db"
+# SQLite database URL - use consistent path
+SQLALCHEMY_DATABASE_URL = "sqlite:///./dev.db"
 
 # Create engine with SQLite specific parameters
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, 
     connect_args={"check_same_thread": False},
-    echo=True  # Enable SQL query logging
+    echo=False  # Disable SQL query logging in production
 )
 
 # Session factory
@@ -31,3 +31,7 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def init_db():
+    """Initialize database tables"""
+    Base.metadata.create_all(bind=engine)

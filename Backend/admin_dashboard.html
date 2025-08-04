@@ -262,7 +262,7 @@
     <script>
         // Initialize global variables
         let authToken = null;
-        const API_BASE = 'http://localhost:8000';
+        const API_BASE = 'http://localhost:8001';  // Fixed port to match backend
         
         // Log script loading
         console.log('Admin dashboard script loaded');
@@ -328,28 +328,47 @@
                         localStorage.setItem('adminToken', authToken);
                         console.log('Login successful, token stored');
                         
-                        // Hide login form and show dashboard
-                        const loginContainer = document.querySelector('.login-container');
-                        const dashboardContent = document.getElementById('dashboardContent');
-                        
-                        if (loginContainer) loginContainer.style.display = 'none';
-                        if (dashboardContent) {
-                            dashboardContent.style.display = 'block';
-                            dashboardContent.style.visibility = 'visible';
-                        }
-                        
-                        // Load dashboard data
+                        // Verify admin status before proceeding
                         try {
-                            await Promise.all([
-                                loadUserStats(),
-                                loadRecentActivities()
-                            ]);
+                            const adminCheckResponse = await fetch(`${API_BASE}/api/admin/verify-admin`, {
+                                headers: {
+                                    'Authorization': `Bearer ${authToken}`,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
                             
-                            // Set up auto-refresh
-                            setupAutoRefresh();
-                        } catch (e) {
-                            console.error('Error loading dashboard data:', e);
-                            throw new Error('Logged in, but failed to load dashboard data');
+                            if (!adminCheckResponse.ok) {
+                                throw new Error('Access denied. Admin privileges required.');
+                            }
+                            
+                            // Hide login form and show dashboard
+                            const loginContainer = document.querySelector('.login-container');
+                            const dashboardContent = document.getElementById('dashboardContent');
+                            
+                            if (loginContainer) loginContainer.style.display = 'none';
+                            if (dashboardContent) {
+                                dashboardContent.style.display = 'block';
+                                dashboardContent.style.visibility = 'visible';
+                            }
+                            
+                            // Load dashboard data
+                            try {
+                                await Promise.all([
+                                    loadUserStats(),
+                                    loadRecentActivities()
+                                ]);
+                                
+                                // Set up auto-refresh
+                                setupAutoRefresh();
+                            } catch (e) {
+                                console.error('Error loading dashboard data:', e);
+                                throw new Error('Logged in, but failed to load dashboard data');
+                            }
+                        } catch (adminError) {
+                            // Clear token if not admin
+                            localStorage.removeItem('adminToken');
+                            authToken = null;
+                            throw adminError;
                         }
                     } else {
                         throw new Error('Login successful but no access token received');
