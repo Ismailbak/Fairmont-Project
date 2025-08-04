@@ -177,4 +177,4 @@ if __name__ == "__main__":
     print("📍 Admin Dashboard: http://localhost:8001/admin")
     print("📚 API Documentation: http://localhost:8001/docs")
     print("🔍 Health Check: http://localhost:8001/health")
-    uvicorn.run(app, host="0.0.0.0", port=8001, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
