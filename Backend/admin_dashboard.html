@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fairmont Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* Base Styles */
+        :root {
+            --primary: #4f46e5;
+            --primary-dark: #4338ca;
+            --secondary: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --light: #f9fafb;
+            --dark: #111827;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            color: #1f2937;
+            background-color: #f3f4f6;
+            min-height: 100vh;
+        }
+        
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        
+        .loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+        }
+        
+        /* Login Form */
+        .login-container {
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        .login-logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .login-logo img {
+            max-width: 120px;
+            height: auto;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .error-message {
+            color: #f00;
+            margin-bottom: 20px;
+        }
+        
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header-left h2 {
+            margin-bottom: 10px;
+        }
+        
+        .logout-btn {
+            background-color: #f00;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .stats-container {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background-color: #f7f7f7;
+            padding: 20px;
+            border-radius: 10px;
+            width: calc(33.33% - 20px);
+            margin: 10px;
+        }
+        
+        .stat-card h3 {
+            margin-bottom: 10px;
+        }
+        
+        .activities-section {
+            margin-bottom: 20px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .activities-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .activities-table th, .activities-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .activities-table th {
+            background-color: #f7f7f7;
+        }
+        
+        .login-box {
+            max-width: 400px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .login-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        
+        .login-form {
+            margin-bottom: 20px;
+        }
+        
+        .login-btn {
+            background-color: #4CAF50;
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .login-btn:hover {
+            background-color: #3e8e41;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Loading Screen -->
+    <div id="loadingScreen" class="loading-screen" style="display: none;">
+        <div class="text-center">
+            <div class="loading-logo">
+                <img src="./static/img/logo.png" alt="Fairmont Logo" class="w-48 mx-auto">
+            </div>
+            <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mt-8"></div>
+        </div>
+    </div>
+
+    <!-- Login Form -->
+    <div class="login-container" style="max-width: 400px; margin: 2rem auto; padding: 2rem; background: white; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); display: block !important; visibility: visible !important; opacity: 1 !important;">
+        <div class="login-box" style="text-align: center;">
+            <div class="login-logo" style="margin-bottom: 2rem;">
+                <img src="./static/img/logo.png" alt="Fairmont Logo" style="max-width: 120px; height: auto; margin: 0 auto;">
+            </div>
+            <h1 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1.5rem; color: #1f2937;">Welcome Back</h1>
+            
+            <form id="loginForm" style="margin-bottom: 1.5rem;">
+                <div id="errorMessage" style="color: #ef4444; font-size: 0.875rem; margin-bottom: 1rem; display: none;"></div>
+                
+                <div style="margin-bottom: 1.25rem;">
+                    <label for="email" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required
+                           style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 1rem;">
+                </div>
+                
+                <div style="margin-bottom: 1.5rem;">
+                    <label for="password" style="display: block; margin-bottom: 0.5rem; font-weight: 500; color: #374151;">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required
+                           style="width: 100%; padding: 0.5rem 0.75rem; border: 1px solid #d1d5db; border-radius: 0.375rem; font-size: 1rem;">
+                </div>
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem;">
+                    <label style="display: inline-flex; align-items: center;">
+                        <input type="checkbox" style="width: 1rem; height: 1rem; border: 1px solid #d1d5db; border-radius: 0.25rem; margin-right: 0.5rem;">
+                        <span style="margin-left: 0.5rem; font-size: 0.875rem; color: #4b5563;">Remember me</span>
+                    </label>
+                    <a href="#" style="font-size: 0.875rem; color: #3b82f6; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                        Forgot password?
+                    </a>
+                </div>
+                
+                <button type="submit" style="width: 100%; padding: 0.625rem; background-color: #4f46e5; color: white; font-weight: 500; border: none; border-radius: 0.375rem; cursor: pointer; font-size: 1rem; transition: background-color 0.2s;" 
+                        onmouseover="this.style.backgroundColor='#4338ca'" 
+                        onmouseout="this.style.backgroundColor='#4f46e6'">
+                    Sign In
+                </button>
+            </form>
+            
+            <p style="margin-top: 1.5rem; font-size: 0.875rem; color: #4b5563; text-align: center;">
+                Don't have an account? 
+                <a href="#" style="color: #3b82f6; text-decoration: none;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">
+                    Contact administrator
+                </a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Initialize global variables
+        let authToken = null;
+        const API_BASE = 'http://localhost:8000';
+        
+        // Log script loading
+        console.log('Admin dashboard script loaded');
+        console.log('Document readyState:', document.readyState);
+
+        // Authentication
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('errorMessage');
+            const loginButton = document.querySelector('#loginForm button[type="submit"]');
+            
+            if (!loginButton) {
+                console.error('Login button not found');
+                return;
+            }
+            
+            const originalButtonText = loginButton.innerHTML;
+
+            if (!email || !password) {
+                showError(errorDiv, 'Please enter both email and password');
+                return;
+            }
+
+            try {
+                // Show loading state
+                showLoadingScreen();
+                loginButton.disabled = true;
+                loginButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Signing in...';
+                if (errorDiv) errorDiv.style.display = 'none';
+
+                console.log('Attempting login with:', { email, password });
+                
+                console.log('Sending login request to:', `${API_BASE}/api/auth/signin`);
+                const response = await fetch(`${API_BASE}/api/auth/signin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: password
+                    }),
+                    credentials: 'same-origin'  // Important for sending/receiving cookies
+                });
+
+                console.log('Response status:', response.status);
+                
+                // First try to parse JSON, but handle non-JSON responses
+                let data;
+                try {
+                    data = await response.json().catch(() => ({}));
+                    console.log('Response data:', data);
+                } catch (e) {
+                    console.error('Failed to parse response as JSON:', e);
+                    throw new Error('Invalid response from server');
+                }
+
+                if (response.ok) {
+                    if (data.access_token) {
+                        authToken = data.access_token;
+                        localStorage.setItem('adminToken', authToken);
+                        console.log('Login successful, token stored');
+                        
+                        // Hide login form and show dashboard
+                        const loginContainer = document.querySelector('.login-container');
+                        const dashboardContent = document.getElementById('dashboardContent');
+                        
+                        if (loginContainer) loginContainer.style.display = 'none';
+                        if (dashboardContent) {
+                            dashboardContent.style.display = 'block';
+                            dashboardContent.style.visibility = 'visible';
+                        }
+                        
+                        // Load dashboard data
+                        try {
+                            await Promise.all([
+                                loadUserStats(),
+                                loadRecentActivities()
+                            ]);
+                            
+                            // Set up auto-refresh
+                            setupAutoRefresh();
+                        } catch (e) {
+                            console.error('Error loading dashboard data:', e);
+                            throw new Error('Logged in, but failed to load dashboard data');
+                        }
+                    } else {
+                        throw new Error('Login successful but no access token received');
+                    }
+                } else {
+                    // Handle different error statuses
+                    if (response.status === 422) {
+                        const errorDetail = data.detail || 'Invalid request format';
+                        console.error('Validation error details:', errorDetail);
+                        throw new Error('Invalid email or password format');
+                    } else if (response.status === 401) {
+                        throw new Error('Invalid email or password');
+                    } else {
+                        const errorMsg = data.detail || data.message || `Login failed with status ${response.status}`;
+                        console.error('Login error:', errorMsg);
+                        throw new Error(errorMsg);
+                    }
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                const errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
+                console.log('Displaying error to user:', errorMessage);
+                
+                // Make sure login form is visible
+                showLoginForm();
+                
+                // Make sure error div is visible
+                if (errorDiv) {
+                    errorDiv.textContent = errorMessage;
+                    errorDiv.style.display = 'block';
+                    errorDiv.style.visibility = 'visible';
+                    errorDiv.style.opacity = '1';
+                    errorDiv.style.color = '#ef4444';
+                    errorDiv.style.marginBottom = '1rem';
+                    errorDiv.style.padding = '0.5rem';
+                    errorDiv.style.borderRadius = '0.25rem';
+                    
+                    // Scroll to error message
+                    errorDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    console.error('Error div not found in DOM');
+                    alert('Login error: ' + errorMessage);
+                }
+                
+                // Reset login button
+                if (loginButton) {
+                    loginButton.disabled = false;
+                    loginButton.innerHTML = 'Sign In';
+                }
+            }
+        }
+
+        // Load user statistics
+        async function loadUserStats() {
+            try {
+                console.log('Loading user statistics...');
+                const content = document.getElementById('userStatsContent');
+                if (!content) {
+                    console.error('userStatsContent element not found');
+                    return;
+                }
+                
+                // Show loading state
+                content.innerHTML = '<div class="text-center py-4">Loading user statistics...</div>';
+
+                const response = await fetch(`${API_BASE}/api/admin/user-stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                console.log('User stats response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('User stats data:', data);
+                
+                if (Array.isArray(data)) {
+                    displayUserStats(data);
+                } else {
+                    throw new Error('Invalid data format received from server');
+                }
+            } catch (error) {
+                console.error('Error in loadUserStats:', error);
+                const content = document.getElementById('userStatsContent');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-red-700">
+                                        ${error.message || 'Failed to load user statistics. Please try again.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    console.error('Could not find userStatsContent element to display error');
+                }
+            }
+        }
+
+        // Display user statistics
+        function displayUserStats(users) {
+            try {
+                const content = document.getElementById('userStatsContent');
+                if (!content) {
+                    console.error('userStatsContent element not found');
+                    return;
+                }
+
+                if (!Array.isArray(users) || users.length === 0) {
+                    content.innerHTML = `
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        No user data available
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const totalUsers = users.length;
+                const totalActivities = users.reduce((sum, user) => {
+                    return sum + (parseInt(user.total_activities) || 0);
+                }, 0);
+                
+                // Consider users active if they've logged in within the last 30 days
+                const thirtyDaysAgo = new Date();
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                
+                const activeUsers = users.filter(user => {
+                    if (!user.last_login) return false;
+                    const lastLogin = new Date(user.last_login);
+                    return lastLogin >= thirtyDaysAgo;
+                }).length;
+
+                content.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow duration-200">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-2xl font-bold text-gray-900">${totalUsers}</div>
+                                    <div class="text-sm font-medium text-gray-500">Total Users</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow duration-200">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-2xl font-bold text-gray-900">${activeUsers}</div>
+                                    <div class="text-sm font-medium text-gray-500">Active Users (30d)</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow duration-200">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-2xl font-bold text-gray-900">${totalActivities}</div>
+                                    <div class="text-sm font-medium text-gray-500">Total Activities</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-200">
+                            <h3 class="text-lg font-medium text-gray-900">User Activity Overview</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activities</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    ${users.slice(0, 5).map(user => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="flex items-center">
+                                                    <div class="flex-shrink-0 h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                                        <span class="text-blue-600 font-medium">${user.full_name ? user.full_name.charAt(0).toUpperCase() : '?'}</span>
+                                                    </div>
+                                                    <div class="ml-4">
+                                                        <div class="text-sm font-medium text-gray-900">${user.full_name || 'N/A'}</div>
+                                                        <div class="text-sm text-gray-500">${user.is_admin ? 'Admin' : 'User'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                ${user.email || 'N/A'}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                ${user.last_login ? formatDate(user.last_login) : 'Never'}
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                                                    ${parseInt(user.total_activities) || 0} activities
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                        ${users.length > 5 ? `
+                            <div class="px-6 py-3 bg-gray-50 text-right text-sm">
+                                <span class="text-gray-500">Showing 5 of ${users.length} users</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error in displayUserStats:', error);
+                if (content) {
+                    content.innerHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-red-700">
+                                        Error displaying user statistics: ${error.message}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Load recent activities
+        async function loadRecentActivities() {
+            try {
+                console.log('Loading recent activities...');
+                const content = document.getElementById('recentActivitiesContent');
+                if (!content) {
+                    console.error('recentActivitiesContent element not found');
+                    return;
+                }
+                
+                // Show loading state
+                content.innerHTML = `
+                    <div class="flex justify-center items-center py-8">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-600"></div>
+                        <span class="ml-3 text-gray-600">Loading recent activities...</span>
+                    </div>
+                `;
+
+                const response = await fetch(`${API_BASE}/api/admin/user-activities?limit=10`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                console.log('Recent activities response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('Recent activities data:', data);
+                
+                if (Array.isArray(data)) {
+                    displayRecentActivities(data);
+                } else {
+                    throw new Error('Invalid data format received for recent activities');
+                }
+            } catch (error) {
+                console.error('Error in loadRecentActivities:', error);
+                const content = document.getElementById('recentActivitiesContent');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        ${error.message || 'Could not load recent activities. Some data may be missing.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    console.error('Could not find recentActivitiesContent element to display error');
+                }
+            }
+        }
+
+        // Display recent activities
+        function displayRecentActivities(activities) {
+            const content = document.getElementById('recentActivitiesContent');
+            
+            if (!activities || activities.length === 0) {
+                content.innerHTML = '<div class="text-center py-4 text-gray-500">No recent activities found.</div>';
+                return;
+            }
+
+            content.innerHTML = `
+                <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">IP</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                ${activities.map(activity => `
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <div class="flex items-center">
+                                                <div class="text-sm font-medium text-gray-900">
+                                                    ${activity.user_name || 'System'}
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                ${activity.action === 'login' ? 'bg-green-100 text-green-800' : 
+                                                  activity.action === 'signup' ? 'bg-blue-100 text-blue-800' :
+                                                  'bg-gray-100 text-gray-800'}">
+                                                ${activity.action || 'N/A'}
+                                            </span>
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            ${activity.timestamp ? formatDate(activity.timestamp) : 'N/A'}
+                                        </td>
+                                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            ${activity.ip_address || 'N/A'}
+                                        </td>
+                                    </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Load all user activities
+        async function loadUserActivities() {
+            const content = document.getElementById('userActivitiesContent');
+            const userFilter = document.getElementById('userFilter').value;
+            content.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                let url = `${API_BASE}/api/admin/user-activities?limit=100`;
+                if (userFilter) {
+                    url += `&user_id=${userFilter}`;
+                }
+
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const activities = await response.json();
+                    displayUserActivities(activities);
+                } else {
+                    content.innerHTML = '<div class="error">Failed to load user activities</div>';
+                }
+            } catch (error) {
+                content.innerHTML = '<div class="error">Connection error</div>';
+            }
+        }
+
+        // Display user activities
+        function displayUserActivities(activities) {
+            const content = document.getElementById('userActivitiesContent');
+            
+            if (activities.length === 0) {
+                content.innerHTML = '<p>No activities found.</p>';
+                return;
+            }
+
+            content.innerHTML = `
+                <table class="activity-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Endpoint</th>
+                            <th>IP Address</th>
+                            <th>User Agent</th>
+                            <th>Timestamp</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${activities.map(activity => `
+                            <tr>
+                                <td>${activity.user_name}</td>
+                                <td><span class="action-badge action-${activity.action}">${activity.action}</span></td>
+                                <td>${activity.endpoint || 'N/A'}</td>
+                                <td>${activity.ip_address || 'N/A'}</td>
+                                <td title="${activity.user_agent || 'N/A'}">${truncateText(activity.user_agent, 30)}</td>
+                                <td>${formatDate(activity.timestamp)}</td>
+                                <td title="${activity.details || 'N/A'}">${truncateText(activity.details, 50)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // Load user filter options
+        async function loadUserFilter() {
+            try {
+                const response = await fetch(`${API_BASE}/api/admin/user-stats`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+
+                if (response.ok) {
+                    const users = await response.json();
+                    const select = document.getElementById('userFilter');
+                    
+                    users.forEach(user => {
+                        const option = document.createElement('option');
+                        option.value = user.user_id;
+                        option.textContent = user.full_name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to load user filter options:', error);
+            }
+        }
+
+        // Utility functions
+        function formatDate(dateString) {
+            return new Date(dateString).toLocaleString();
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return 'N/A';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        function showError(element, message) {
+            if (!element) {
+                console.error('Error element not found');
+                return;
+            }
+            console.log('Showing error:', message);
+            element.textContent = message;
+            element.style.display = 'block';
+            element.style.visibility = 'visible';
+            element.style.opacity = '1';
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (element) {
+                    element.style.display = 'none';
+                }
+            }, 5000);
+        }
+
+        // Set up auto-refresh
+        function setupAutoRefresh() {
+            // Initial load
+            loadRecentActivities();
+            
+            // Set up interval for auto-refresh (every 30 seconds)
+            setInterval(() => {
+                if (authToken) {
+                    loadRecentActivities();
+                }
+            }, 30000);
+        }
+        
+        // Check for existing session on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM fully loaded');
+            
+            // Make sure login form is visible
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.style.display = 'block';
+            }
+            
+            // Check for existing token
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                authToken = token;
+                document.querySelector('.login-container').classList.add('hidden');
+                document.getElementById('dashboardContent').classList.remove('hidden');
+                
+                // Load dashboard data
+                Promise.all([
+                    loadUserStats(),
+                    loadRecentActivities()
+                ]).catch(error => {
+                    console.error('Error loading dashboard data:', error);
+                    // If there's an error, clear the token and show login
+                    localStorage.removeItem('adminToken');
+                    authToken = null;
+                    document.querySelector('.login-container').classList.remove('hidden');
+                    document.getElementById('dashboardContent').classList.add('hidden');
+                });
+            } else {
+                // Hide loading screen
+                document.getElementById('loadingScreen').classList.add('hidden');
+            }
+        });
+        
+        // Logout functionality
+        function logout() {
+            authToken = null;
+            localStorage.removeItem('adminToken');
+            window.location.reload();
+        }
+        
+        // Function to show login form
+        function showLoginForm() {
+            const loginContainer = document.querySelector('.login-container');
+            const loadingScreen = document.getElementById('loadingScreen');
+            
+            if (loginContainer) {
+                loginContainer.style.display = 'block';
+                loginContainer.style.visibility = 'visible';
+                loginContainer.style.opacity = '1';
+                console.log('Login form shown');
+            }
+            
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+        }
+
+        // Function to show loading screen
+        function showLoadingScreen() {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'flex';
+            }
+        }
+
+        // Add event listeners when DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM fully loaded, setting up event listeners');
+            
+            // Show login form by default
+            showLoginForm();
+            
+            // Setup login form
+            const loginFormEl = document.getElementById('loginForm');
+            if (loginFormEl) {
+                console.log('Adding submit event listener to login form');
+                loginFormEl.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.log('Login form submitted');
+                    login();
+                });
+            } else {
+                console.error('Login form not found when adding event listener');
+            }
+            
+            // Setup logout button
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                console.log('Adding click event listener to logout button');
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Logout button clicked');
+                    logout();
+                });
+            } else {
+                console.log('Logout button not found (this is normal on login page)');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,7 +1,41 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { AuthService } from './services/authService';
 
 export default function SignUp() {
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSignUp = async () => {
+    if (!fullName || !email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await AuthService.signup({
+        full_name: fullName,
+        email: email,
+        password: password
+      });
+      Alert.alert('Success', 'Account created successfully!');
+      router.replace('/chatbot');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Registration failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.container}>
@@ -14,23 +48,36 @@ export default function SignUp() {
             placeholder="Full Name" 
             style={styles.input} 
             placeholderTextColor="#999"
+            value={fullName}
+            onChangeText={setFullName}
           />
           <TextInput 
             placeholder="Email Address" 
             style={styles.input} 
             keyboardType="email-address"
             placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
           />
           <TextInput 
             placeholder="Create Password" 
             style={styles.input} 
             secureTextEntry
             placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
           />
         </View>
         
-        <TouchableOpacity style={styles.button} onPress={() => router.replace('/chatbot')}>
-          <Text style={styles.buttonText}>Create Account</Text>
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleSignUp}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </Text>
         </TouchableOpacity>
         
         <View style={styles.loginLink}>
@@ -103,6 +150,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 1
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
   },
   loginLink: {
     flexDirection: 'row',

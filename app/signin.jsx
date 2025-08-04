@@ -1,5 +1,7 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Linking } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
+import { useState } from 'react';
+import { AuthService } from './services/authService';
 
 const SocialIcon = ({ source, onPress }) => (
   <TouchableOpacity style={styles.socialIcon} onPress={onPress}>
@@ -8,6 +10,28 @@ const SocialIcon = ({ source, onPress }) => (
 );
 
 export default function SignIn() {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSignIn = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = await AuthService.signin(email, password);
+      Alert.alert('Success', 'Signed in successfully!');
+      router.replace('/chatbot');
+    } catch (error) {
+      Alert.alert('Error', error.message || 'Sign in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
       <View style={styles.container}>
@@ -21,17 +45,28 @@ export default function SignIn() {
             style={styles.input} 
             keyboardType="email-address"
             placeholderTextColor="#999"
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
           />
           <TextInput 
             placeholder="Password" 
             style={styles.input} 
             secureTextEntry
             placeholderTextColor="#999"
+            value={password}
+            onChangeText={setPassword}
           />
         </View>
         
-        <TouchableOpacity style={styles.button} onPress={() => router.replace('/chatbot')}>
-          <Text style={styles.buttonText}>Sign In</Text>
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={handleSignIn}
+          disabled={loading}
+        >
+          <Text style={styles.buttonText}>
+            {loading ? 'Signing In...' : 'Sign In'}
+          </Text>
         </TouchableOpacity>
         
         <View style={styles.signupLink}>
@@ -126,6 +161,10 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     letterSpacing: 1
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
   },
   signupLink: {
     flexDirection: 'row',

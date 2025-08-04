@@ -1,22 +1,29 @@
-// Configuration for the Fairmont mobile app
 export const CONFIG = {
-  // Backend API configuration
   API: {
-    BASE_URL: 'http://10.16.21.177:9000', // Use port 9000
+    BASE_URL: 'http://10.16.21.177:8000',  // Backend API server port
     ENDPOINTS: {
-      CHAT: '/api/chat',
-      HEALTH: '/api/health',
+      // Authentication endpoints
+      SIGNUP: '/api/auth/signup',
+      SIGNIN: '/api/auth/signin',
+      
+      // Protected endpoints
+      CHAT: '/chat',         // Now requires JWT token
+      
+      // Monitoring endpoints
+      USER_ACTIVITIES: '/api/admin/user-activities',
+      USER_STATS: '/api/admin/user-stats',
+      MY_ACTIVITIES: '/api/admin/my-activities',
+      
+      // Health check
+      HEALTH: '/health',
     }
   },
-  
-  // App settings
   APP: {
     NAME: 'Fairmont',
     VERSION: '1.0.0',
   }
 };
 
-// Helper function to get full API URL
 export const getApiUrl = (endpoint) => {
   return `${CONFIG.API.BASE_URL}${endpoint}`;
-}; 
+};
