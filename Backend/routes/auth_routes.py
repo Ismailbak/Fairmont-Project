@@ -18,6 +18,10 @@ class SignInRequest(BaseModel):
     email: EmailStr
     password: str
 
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str
+
 @router.post("/signup")
 def signup(req: SignUpRequest, request: Request, db: Session = Depends(get_db)):
     return auth.signup_user(
@@ -33,6 +37,15 @@ def signin(req: SignInRequest, request: Request, db: Session = Depends(get_db)):
     return auth.signin_user(
         email=req.email,
         password=req.password,
+        db=db,
+        request=request
+    )
+
+@router.post("/reset-password")
+def reset_password(req: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    return auth.reset_password(
+        email=req.email,
+        new_password=req.new_password,
         db=db,
         request=request
     )

@@ -109,6 +109,30 @@ export class AuthService {
     await AsyncStorage.multiRemove([TOKEN_KEY, REFRESH_TOKEN_KEY, USER_KEY]);
   }
 
+  // Reset password
+  static async resetPassword(email, newPassword) {
+    try {
+      const response = await fetch(getApiUrl(CONFIG.API.ENDPOINTS.RESET_PASSWORD), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, new_password: newPassword }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.detail || 'Password reset failed');
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Password reset error:', error);
+      throw error;
+    }
+  }
+
   // Make authenticated API calls
   static async authenticatedFetch(url, options = {}) {
     const token = await this.getToken();

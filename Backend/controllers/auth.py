@@ -86,3 +86,21 @@ def signin_user(email: str, password: str, db: Session, request: Request = None)
         "refresh_token": refresh_token,
         "token_type": "bearer"
     }
+
+# Reset password logic
+def reset_password(email: str, new_password: str, db: Session, request: Request = None):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update password
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+    
+    # Log password reset activity
+    log_user_activity(user.id, "password_reset", db, request)
+    
+    return {
+        "message": "Password reset successfully",
+        "user_id": user.id
+    }

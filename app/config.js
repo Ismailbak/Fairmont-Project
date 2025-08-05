@@ -1,10 +1,11 @@
 export const CONFIG = {
   API: {
-    BASE_URL: 'http://10.16.21.177:8000',  // Backend API server port
+    BASE_URL: 'http://10.16.21.177:8001',  // Backend API server port
     ENDPOINTS: {
       // Authentication endpoints
       SIGNUP: '/api/auth/signup',
       SIGNIN: '/api/auth/signin',
+      RESET_PASSWORD: '/api/auth/reset-password',
       
       // Protected endpoints
       CHAT: '/chat',         // Now requires JWT token

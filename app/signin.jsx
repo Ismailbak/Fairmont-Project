@@ -13,6 +13,7 @@ export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSignIn = async () => {
     if (!email || !password) {
@@ -30,6 +31,42 @@ export default function SignIn() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address');
+      return;
+    }
+
+    Alert.prompt(
+      'Reset Password',
+      'Enter your new password:',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          onPress: async (newPassword) => {
+            if (!newPassword || newPassword.length < 6) {
+              Alert.alert('Error', 'Password must be at least 6 characters long');
+              return;
+            }
+
+            setResetLoading(true);
+            try {
+              await AuthService.resetPassword(email, newPassword);
+              Alert.alert('Success', 'Password reset successfully! You can now sign in with your new password.');
+              setPassword(newPassword);
+            } catch (error) {
+              Alert.alert('Error', error.message || 'Password reset failed');
+            } finally {
+              setResetLoading(false);
+            }
+          }
+        }
+      ],
+      'secure-text'
+    );
   };
 
   return (
@@ -57,6 +94,15 @@ export default function SignIn() {
             value={password}
             onChangeText={setPassword}
           />
+          <TouchableOpacity 
+            style={styles.forgotPasswordLink} 
+            onPress={handleResetPassword}
+            disabled={resetLoading}
+          >
+            <Text style={styles.forgotPasswordText}>
+              {resetLoading ? 'Resetting...' : 'Forgot Password?'}
+            </Text>
+          </TouchableOpacity>
         </View>
         
         <TouchableOpacity 
@@ -131,6 +177,17 @@ const styles = StyleSheet.create({
   formContainer: {
     width: '100%',
     marginBottom: 30,
+  },
+  forgotPasswordLink: {
+    alignSelf: 'flex-end',
+    marginTop: -8,
+    marginBottom: 16,
+  },
+  forgotPasswordText: {
+    color: '#8B7355',
+    fontSize: 14,
+    fontWeight: '500',
+    textDecorationLine: 'underline',
   },
   input: { 
     width: '100%', 

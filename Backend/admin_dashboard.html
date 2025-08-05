@@ -259,10 +259,43 @@
         </div>
     </div>
 
+    <!-- Dashboard Content (Hidden by default) -->
+    <div id="dashboardContent" class="dashboard-container" style="display: none; max-width: 1200px; margin: 40px auto; padding: 20px; background-color: #fff; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); position: relative; z-index: 1000;">
+        <div class="dashboard-header" style="margin-bottom: 30px;">
+            <h1 style="font-size: 2rem; font-weight: bold; color: #1f2937; margin-bottom: 10px;">Fairmont Admin Dashboard</h1>
+            <p style="color: #6b7280; font-size: 1.1rem;">Monitor user activities and system statistics</p>
+        </div>
+
+        <!-- User Statistics Section -->
+        <div id="userStatsContent" class="mb-8">
+            <!-- User statistics will be loaded here -->
+        </div>
+
+                    <!-- Recent Activities Section -->
+            <div id="recentActivitiesContent" class="mb-8">
+                <!-- Recent activities will be loaded here -->
+            </div>
+
+            <!-- User Details Section -->
+            <div id="userDetailsContent" class="mb-8">
+                <h2 style="font-size: 1.5rem; font-weight: bold; color: #1f2937; margin-bottom: 20px;">User Details & Passwords</h2>
+                <div id="userDetailsList">
+                    <!-- User details will be loaded here -->
+                </div>
+            </div>
+
+        <!-- Logout Button -->
+        <div style="text-align: center; margin-top: 30px;">
+            <button onclick="logout()" style="background-color: #ef4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 1rem;">
+                Logout
+            </button>
+        </div>
+    </div>
+
     <script>
         // Initialize global variables
         let authToken = null;
-        const API_BASE = 'http://localhost:8000';
+        const API_BASE = 'http://localhost:8001';
         
         // Log script loading
         console.log('Admin dashboard script loaded');
@@ -332,17 +365,25 @@
                         const loginContainer = document.querySelector('.login-container');
                         const dashboardContent = document.getElementById('dashboardContent');
                         
-                        if (loginContainer) loginContainer.style.display = 'none';
+                        if (loginContainer) {
+                            loginContainer.style.display = 'none';
+                            console.log('Login container hidden');
+                        }
                         if (dashboardContent) {
                             dashboardContent.style.display = 'block';
                             dashboardContent.style.visibility = 'visible';
+                            dashboardContent.style.opacity = '1';
+                            console.log('Dashboard content shown');
+                        } else {
+                            console.error('Dashboard content element not found!');
                         }
                         
                         // Load dashboard data
                         try {
                             await Promise.all([
                                 loadUserStats(),
-                                loadRecentActivities()
+                                loadRecentActivities(),
+                                loadUserDetails()
                             ]);
                             
                             // Set up auto-refresh
@@ -413,7 +454,8 @@
                 }
                 
                 // Show loading state
-                content.innerHTML = '<div class="text-center py-4">Loading user statistics...</div>';
+                content.innerHTML = '<div class="text-center py-4" style="color: red; font-size: 18px;">Loading user statistics...</div>';
+                console.log('Loading state shown in userStatsContent');
 
                 const response = await fetch(`${API_BASE}/api/admin/user-stats`, {
                     method: 'GET',
@@ -620,6 +662,169 @@
                                 <div class="ml-3">
                                     <p class="text-sm text-red-700">
                                         Error displaying user statistics: ${error.message}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Load user details with passwords
+        async function loadUserDetails() {
+            try {
+                console.log('Loading user details...');
+                const content = document.getElementById('userDetailsList');
+                if (!content) {
+                    console.error('userDetailsList element not found');
+                    return;
+                }
+                
+                // Show loading state
+                content.innerHTML = '<div class="text-center py-4" style="color: blue; font-size: 18px;">Loading user details...</div>';
+
+                const response = await fetch(`${API_BASE}/api/admin/user-details`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'same-origin'
+                });
+
+                console.log('User details response status:', response.status);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log('User details data:', data);
+                
+                if (Array.isArray(data)) {
+                    displayUserDetails(data);
+                } else {
+                    throw new Error('Invalid data format received from server');
+                }
+            } catch (error) {
+                console.error('Error in loadUserDetails:', error);
+                const content = document.getElementById('userDetailsList');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-red-700">
+                                        ${error.message || 'Failed to load user details. Please try again.'}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        // Display user details with passwords
+        function displayUserDetails(users) {
+            try {
+                const content = document.getElementById('userDetailsList');
+                if (!content) {
+                    console.error('userDetailsList element not found');
+                    return;
+                }
+
+                if (!Array.isArray(users) || users.length === 0) {
+                    content.innerHTML = `
+                        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-yellow-700">
+                                        No user details available
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+
+                content.innerHTML = `
+                    <div class="bg-white rounded-lg shadow overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Password Hash</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Login</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    ${users.map(user => `
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${user.user_id}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <div class="text-sm font-medium text-gray-900">${user.full_name || 'N/A'}</div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.email || 'N/A'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                <div class="max-w-xs truncate" title="${user.hashed_password}">
+                                                    ${user.hashed_password ? user.hashed_password.substring(0, 20) + '...' : 'N/A'}
+                                                </div>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(user.created_at)}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.last_login ? formatDate(user.last_login) : 'Never'}</td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">
+                                                    ${user.is_active ? 'Active' : 'Inactive'}
+                                                </span>
+                                            </td>
+                                            <td class="px-6 py-4 whitespace-nowrap">
+                                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${user.is_admin ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}">
+                                                    ${user.is_admin ? 'Admin' : 'User'}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error in displayUserDetails:', error);
+                const content = document.getElementById('userDetailsList');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <p class="text-sm text-red-700">
+                                        Error displaying user details: ${error.message}
                                     </p>
                                 </div>
                             </div>

@@ -38,6 +38,16 @@ class UserStatsResponse(BaseModel):
     total_activities: int
     recent_activities: List[str]
 
+class UserDetailsResponse(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+    hashed_password: str
+    created_at: datetime
+    last_login: Optional[datetime]
+    is_active: bool
+    is_admin: bool
+
 @router.get("/user-activities", response_model=List[UserActivityResponse])
 def get_user_activities(
     limit: int = 50,
@@ -90,6 +100,32 @@ def get_user_stats(
             last_login=user.last_login,
             total_activities=len(activities),
             recent_activities=recent_activities
+        ))
+    
+    return result
+
+@router.get("/user-details", response_model=List[UserDetailsResponse])
+def get_user_details(
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Get detailed user information including passwords (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    users = db.query(User).all()
+    
+    result = []
+    for user in users:
+        result.append(UserDetailsResponse(
+            user_id=user.id,
+            full_name=user.full_name,
+            email=user.email,
+            hashed_password=user.hashed_password,
+            created_at=user.created_at,
+            last_login=user.last_login,
+            is_active=user.is_active,
+            is_admin=user.is_admin
         ))
     
     return result
