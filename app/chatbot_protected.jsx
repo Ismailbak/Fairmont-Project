@@ -1,409 +1,388 @@
-// app/chatbot_protected.jsx - Protected version of chatbot with authentication
-import { useState, useRef } from 'react';
+// app/chatbot_protected.jsx
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, SafeAreaView, Modal } from 'react-native';
 import { router } from 'expo-router';
 import AuthGuard from './components/AuthGuard';
-import { AuthService } from './services/authService';
-
-const DUMMY_MESSAGES = [
-  { from: 'bot', text: 'Hello! How can I help you today?' },
-];
-
-const CHAT_HISTORY = [
-  { id: 1, title: 'Hotel Booking Inquiry', date: 'Today' },
-  { id: 2, title: 'Restaurant Recommendations', date: 'Yesterday' },
-  { id: 3, title: 'Spa Services Information', date: '2 days ago' },
-  { id: 4, title: 'Concierge Services', date: '3 days ago' },
-];
+import { SessionService } from '../src/services/sessionService';
 
 export default function ChatbotProtected() {
-  const [messages, setMessages] = useState(DUMMY_MESSAGES);
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [showHistory, setShowHistory] = useState(false);
+  const [sessions, setSessions] = useState([]);
+  const [currentSession, setCurrentSession] = useState(null);
   const scrollViewRef = useRef();
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    
-    const userMessage = input.trim();
-    setMessages([...messages, { from: 'user', text: userMessage }]);
-    setInput('');
-    
-    // Show loading message
-    setMessages(msgs => [...msgs, { from: 'bot', text: 'Thinking...', isLoading: true }]);
-    
+  const fetchSessions = async () => {
     try {
-      // Use authenticated request through AuthService
-      const data = await AuthService.sendChatMessage(userMessage);
-      
-      if (data.success) {
-        // Replace loading message with actual response
-        setMessages(msgs => {
-          const newMessages = msgs.filter(msg => !msg.isLoading);
-          return [...newMessages, { from: 'bot', text: data.response }];
-        });
-      } else {
-        // Handle error
-        setMessages(msgs => {
-          const newMessages = msgs.filter(msg => !msg.isLoading);
-          return [...newMessages, { from: 'bot', text: 'Sorry, I encountered an error. Please try again.' }];
-        });
+      const data = await SessionService.listSessions();
+      setSessions(data);
+      if (!currentSession && data.length > 0) {
+        setCurrentSession(data[0]);
       }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      // Replace loading message with error
-      setMessages(msgs => {
-        const newMessages = msgs.filter(msg => !msg.isLoading);
-        return [...newMessages, { from: 'bot', text: error.message || 'Sorry, I\'m having trouble connecting to the server. Please check your connection and try again.' }];
-      });
+    } catch (e) {
+      console.log('Error fetching sessions:', e.message);
     }
   };
 
   const handleProfilePress = () => {
-    router.push('/settings');
+    router.push('/profile');
   };
 
-  const handleHistoryPress = () => {
-    setShowHistory(true);
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    let session = currentSession;
+    if (!session) {
+      session = await SessionService.createSession('New Chat');
+      setCurrentSession(session);
+      setSessions(prev => [session, ...prev]);
+    }
+    const userMsg = { from: 'user', text: input };
+    setMessages(prev => [...prev, userMsg, { from: 'bot', text: '...', isLoading: true }]);
+    const userInput = input;
+    setInput('');
+    try {
+      const res = await SessionService.sendMessage(session.id, userInput, 'user');
+      setMessages(prev => {
+        const filtered = prev.filter(m => !m.isLoading);
+        if (res.user_message && res.bot_message) {
+          return [
+            ...filtered,
+            { from: 'user', text: res.user_message.message },
+            { from: 'bot', text: res.bot_message.message }
+          ];
+        } else if (res.response || res.text) {
+          return [...filtered, { from: 'bot', text: res.response || res.text || 'No response.' }];
+        } else {
+          return [...filtered, { from: 'bot', text: 'No response.' }];
+        }
+      });
+    } catch (e) {
+      setMessages(prev => {
+        const filtered = prev.filter(m => !m.isLoading);
+        return [...filtered, { from: 'bot', text: 'Sorry, there was an error.' }];
+      });
+    }
   };
 
-  const startNewChat = () => {
-    setMessages([{ from: 'bot', text: 'Hello! How can I help you today?' }]);
-    setShowHistory(false);
-  };
+  useEffect(() => {
+    fetchSessions();
+  }, []);
 
   return (
-    <AuthGuard>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={styles.header}>
-            <View style={styles.headerContent}>
-              <View style={styles.brandSection}>
-                <TouchableOpacity style={styles.historyButton} onPress={handleHistoryPress}>
-                  <View style={styles.historyIcon}>
-                    <View style={styles.hamburgerLine} />
-                    <View style={styles.hamburgerLine} />
-                    <View style={styles.hamburgerLine} />
-                  </View>
-                </TouchableOpacity>
-                <View style={styles.titleSection}>
-                  <Text style={styles.brandName}>Fairmont</Text>
-                  <Text style={styles.assistantText}>AI Assistant</Text>
-                </View>
-              </View>
-              <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}>
-                <View style={styles.profilePhoto}>
-                  <Text style={styles.profileInitial}>U</Text>
-                </View>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+      <AuthGuard>
+        {/* History Modal */}
+        <Modal
+          visible={showHistory}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setShowHistory(false)}
+        >
+          <View style={styles.historyModalOverlay}>
+            <View style={styles.historyModalContent}>
+              <Text style={styles.historyModalTitle}>Chat History</Text>
+              <ScrollView style={{ maxHeight: 300 }}>
+                {sessions.length === 0 && (
+                  <Text style={{ color: '#888', textAlign: 'center', marginTop: 20 }}>No previous chats.</Text>
+                )}
+                {sessions.map((session) => (
+                  <TouchableOpacity
+                    key={session.id}
+                    style={styles.historySessionItem}
+                    onPress={async () => {
+                      setShowHistory(false);
+                      setCurrentSession(session);
+                      try {
+                        const msgs = await SessionService.getSessionMessages(session.id);
+                        setMessages(msgs);
+                      } catch {}
+                    }}
+                  >
+                    <Text style={styles.historySessionTitle}>{session.title || 'Untitled Chat'}</Text>
+                    <Text style={styles.historySessionDate}>{session.created_at ? new Date(session.created_at).toLocaleString() : ''}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <TouchableOpacity style={styles.historyModalCloseBtn} onPress={() => setShowHistory(false)}>
+                <Text style={styles.historyModalCloseText}>Close</Text>
               </TouchableOpacity>
             </View>
           </View>
+        </Modal>
 
-          <ScrollView 
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity
+            style={styles.historyButtonModern}
+            onPress={async () => { await fetchSessions(); setShowHistory(true); }}
+          >
+            <View style={styles.hamburgerIconModern}>
+              <View style={styles.hamburgerLineModern} />
+              <View style={[styles.hamburgerLineModern, { marginVertical: 3 }]} />
+              <View style={styles.hamburgerLineModern} />
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.headerTitleText}>Fairmont Assistant</Text>
+          <TouchableOpacity style={styles.profileButtonModern} onPress={handleProfilePress}>
+            <View style={styles.profilePhotoModern}>
+              <Text style={styles.profilePhotoTextModern}>U</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Chat Area */}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 80 : 0}
+        >
+          <ScrollView
             ref={scrollViewRef}
-            style={styles.messages} 
-            contentContainerStyle={{ padding: 16 }}
+            contentContainerStyle={{ padding: 16, flexGrow: 1, justifyContent: 'flex-end' }}
             onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
           >
             {messages.map((msg, index) => (
-              <View key={index} style={[styles.message, msg.from === 'user' ? styles.userMsg : styles.botMsg]}>
-                <Text style={[styles.msgText, msg.from === 'user' ? styles.userMsgText : styles.botMsgText]}>
-                  {msg.text}
-                </Text>
-                {msg.isLoading && (
-                  <View style={styles.loadingDots}>
-                    <View style={styles.dot} />
-                    <View style={styles.dot} />
-                    <View style={styles.dot} />
-                  </View>
-                )}
+              <View
+                key={index}
+                style={[
+                  styles.messageRowModern,
+                  msg.from === 'user' ? styles.messageRowUserModern : styles.messageRowBotModern
+                ]}
+              >
+                <View
+                  style={[
+                    styles.messageModern,
+                    msg.from === 'user' ? styles.userMsgModern : styles.botMsgModern
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.msgTextModern,
+                      msg.from === 'user' ? styles.userMsgTextModern : styles.botMsgTextModern
+                    ]}
+                  >
+                    {msg.text}
+                  </Text>
+                </View>
               </View>
             ))}
           </ScrollView>
 
-          <View style={styles.inputRow}>
+          {/* Input */}
+          <View style={styles.inputRowModern}>
             <TextInput 
-              style={styles.input} 
+              style={styles.inputModern} 
               value={input} 
               onChangeText={setInput}
               placeholder="Type your message..." 
-              placeholderTextColor="#999"
-              multiline
+              placeholderTextColor="#B0A89F"
+              multiline={false}
               onSubmitEditing={sendMessage}
             />
-            <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
-              <Text style={styles.sendText}>Send</Text>
+            <TouchableOpacity
+              style={[styles.sendBtnModern, (!input.trim()) && styles.sendBtnModernDisabled]}
+              onPress={sendMessage}
+              disabled={!input.trim()}
+            >
+              <Text style={styles.sendTextModern}>Send</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Chat History Modal */}
-          <Modal visible={showHistory} animationType="slide" transparent>
-            <View style={styles.modalOverlay}>
-              <View style={styles.historyContainer}>
-                <View style={styles.historyHeader}>
-                  <Text style={styles.historyTitle}>Chat History</Text>
-                  <TouchableOpacity onPress={() => setShowHistory(false)}>
-                    <Text style={styles.closeButton}>✕</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <TouchableOpacity style={styles.newChatButton} onPress={startNewChat}>
-                  <Text style={styles.newChatText}>+ New Chat</Text>
-                </TouchableOpacity>
-
-                <ScrollView style={styles.historyList}>
-                  {CHAT_HISTORY.map((chat) => (
-                    <TouchableOpacity key={chat.id} style={styles.historyItem}>
-                      <Text style={styles.historyItemTitle}>{chat.title}</Text>
-                      <Text style={styles.historyItemDate}>{chat.date}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            </View>
-          </Modal>
         </KeyboardAvoidingView>
-      </SafeAreaView>
-    </AuthGuard>
+      </AuthGuard>
+    </SafeAreaView>
   );
 }
 
+const BROWN = '#8B7355';
+
 const styles = StyleSheet.create({
-  header: { 
-    backgroundColor: '#fff', 
-    paddingTop: 8,
-    borderBottomWidth: 1, 
-    borderColor: '#f0f0f0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  brandSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  historyModalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  historyButton: {
+  historyModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    maxWidth: 400,
+    alignItems: 'stretch',
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  historyModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 18,
+    textAlign: 'center',
+  },
+  historySessionItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EEE9',
+  },
+  historySessionTitle: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '600',
+  },
+  historySessionDate: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  historyModalCloseBtn: {
+    marginTop: 18,
+    backgroundColor: BROWN,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  historyModalCloseText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  historyButtonModern: {
     padding: 8,
-    marginRight: 16,
+    marginRight: 8,
   },
-  historyIcon: {
+  hamburgerIconModern: {
     width: 24,
-    height: 18,
-    justifyContent: 'space-between',
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  hamburgerLine: {
-    width: 24,
+  hamburgerLineModern: {
+    width: 18,
     height: 2,
-    backgroundColor: '#8B7355',
+    backgroundColor: BROWN,
     borderRadius: 1,
   },
-  titleSection: {
-    flex: 1,
-  },
-  brandName: { 
-    fontSize: 20, 
-    fontWeight: '700',
-    color: '#2c2c2c',
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  assistantText: { 
-    fontSize: 12, 
-    fontWeight: '400',
-    color: '#8B7355',
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  profileButton: {
-    padding: 4,
-  },
-  profilePhoto: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#8B7355',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#8B7355',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  profileInitial: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  messages: { 
-    flex: 1, 
-    backgroundColor: '#fafafa' 
-  },
-  message: { 
-    padding: 16, 
-    borderRadius: 20, 
-    marginBottom: 12, 
-    maxWidth: '85%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  userMsg: { 
-    backgroundColor: '#8B7355', 
-    alignSelf: 'flex-end',
-    borderBottomRightRadius: 6,
-  },
-  botMsg: { 
-    backgroundColor: '#fff', 
-    alignSelf: 'flex-start',
-    borderBottomLeftRadius: 6,
-    borderWidth: 1,
-    borderColor: '#f0f0f0',
-  },
-  msgText: { 
-    fontSize: 16,
-    lineHeight: 22,
-    letterSpacing: 0.2,
-  },
-  userMsgText: {
-    color: '#fff',
-    fontWeight: '400',
-  },
-  botMsgText: {
-    color: '#2c2c2c',
-    fontWeight: '400',
-  },
-  inputRow: { 
-    flexDirection: 'row', 
-    padding: 16, 
-    backgroundColor: '#fff', 
-    borderTopWidth: 1, 
-    borderColor: '#f0f0f0',
-    alignItems: 'center'
-  },
-  input: { 
-    flex: 1, 
-    minHeight: 48, 
-    maxHeight: 120,
-    borderColor: '#e0e0e0', 
-    borderWidth: 1, 
-    borderRadius: 24, 
-    paddingHorizontal: 20, 
-    paddingVertical: 12,
-    marginRight: 12,
-    backgroundColor: '#fafafa',
-    fontSize: 16,
-    color: '#2c2c2c',
-    letterSpacing: 0.2,
-  },
-  sendBtn: { 
-    backgroundColor: '#8B7355', 
-    borderRadius: 24, 
-    paddingHorizontal: 20, 
-    paddingVertical: 12,
-    justifyContent: 'center', 
-    alignItems: 'center',
-    shadowColor: '#8B7355',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sendText: { 
-    color: '#fff', 
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  historyContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    marginTop: 100,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  historyHeader: {
+  headerRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  historyTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2c2c2c',
-  },
-  closeButton: {
-    fontSize: 24,
-    color: '#8B7355',
-    fontWeight: '600',
-  },
-  newChatButton: {
-    backgroundColor: '#8B7355',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: '#8B7355',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  newChatText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  historyList: {
-    flex: 1,
-  },
-  historyItem: {
-    padding: 16,
+    backgroundColor: '#FAFAFA',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: '#F0EEE9',
   },
-  historyItemTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2c2c2c',
-    marginBottom: 4,
+  headerTitleText: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#222',
+    marginHorizontal: 8,
   },
-  historyItemDate: {
-    fontSize: 14,
-    color: '#6c757d',
+  profileButtonModern: {
+    marginLeft: 10,
   },
-  // Loading animation styles
-  loadingDots: {
-    flexDirection: 'row',
+  profilePhotoModern: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: BROWN,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
   },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#8B7355',
-    marginHorizontal: 2,
-    opacity: 0.6,
+  profilePhotoTextModern: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 18,
+  },
+  messageRowModern: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    alignItems: 'flex-end',
+  },
+  messageRowUserModern: {
+    justifyContent: 'flex-end',
+    alignSelf: 'flex-end',
+  },
+  messageRowBotModern: {
+    justifyContent: 'flex-start',
+    alignSelf: 'flex-start',
+  },
+  messageModern: {
+    maxWidth: '80%',
+    borderRadius: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+  },
+  userMsgModern: {
+    backgroundColor: BROWN,
+    alignSelf: 'flex-end',
+    borderTopRightRadius: 6,
+  },
+  botMsgModern: {
+    backgroundColor: '#fff',
+    alignSelf: 'flex-start',
+    borderTopLeftRadius: 6,
+    borderWidth: 1,
+    borderColor: '#F0EEE9',
+  },
+  msgTextModern: {
+    fontSize: 17,
+    lineHeight: 24,
+  },
+  userMsgTextModern: {
+    color: '#fff',
+    fontWeight: '500',
+  },
+  botMsgTextModern: {
+    color: '#222',
+    fontWeight: '400',
+  },
+  inputRowModern: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F0EEE9',
+    backgroundColor: '#FAFAFA',
+  },
+  inputModern: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#E0DED9',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#222',
+  },
+  sendBtnModern: {
+    backgroundColor: BROWN,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 60,
+    opacity: 1,
+  },
+  sendBtnModernDisabled: {
+    backgroundColor: '#E0DED9',
+    opacity: 0.7,
+  },
+  sendTextModern: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });

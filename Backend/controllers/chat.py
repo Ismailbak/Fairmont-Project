@@ -1,15 +1,24 @@
 # backend/controllers/chat.py
 
+
+
 import requests
+import sys
+import os
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 from retriever import get_context
 
 def generate_ai_response(message: str):
     context = get_context(message)
 
+    # Use a smaller model and limit output length for CPU
     payload = {
-        "model": "mistral",
-        "prompt": f"### Hotel Knowledge:\n{context}\n\n### Question:\n{message}\n\n### Answer:",
-        "stream": False
+        "model": "llama2",  # Use llama2 for faster CPU inference if available
+        "prompt": f"Q: {message}\nA:",
+        "stream": False,
+        "options": {"num_predict": 64}
     }
 
     try:

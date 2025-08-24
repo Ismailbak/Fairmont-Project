@@ -32,16 +32,25 @@ export default function App() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       try {
-        const token = await AsyncStorage.getItem('userToken');
+        // Only route to dashboard/chatbot if authenticated (token exists)
+        const token = await AsyncStorage.getItem('auth_token');
         if (token) {
-          router.replace('/chatbot_protected');
-        } else {
-          const hasSeenOnboarding = await AsyncStorage.getItem('hasSeenOnboarding');
-          if (hasSeenOnboarding === 'true') {
-            router.replace('/signin');
+          const userDataStr = await AsyncStorage.getItem('user_data');
+          if (userDataStr) {
+            const userData = JSON.parse(userDataStr);
+            if (userData.email && userData.email.endsWith('@fairmont.com')) {
+              router.replace('/employee_dashboard');
+            } else {
+              router.replace('/chatbot_protected');
+            }
           } else {
-            router.replace('/onboarding');
+            router.replace('/chatbot_protected');
           }
+        } else {
+          // Clear all AsyncStorage to remove stale user_data
+          await AsyncStorage.clear();
+          // After clearing, onboarding flag will be gone, so always show onboarding if not authenticated
+          router.replace('/onboarding');
         }
       } catch (error) {
         console.error('Error checking authentication:', error);

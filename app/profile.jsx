@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import { AuthService } from './services/authService';
+import { AuthService } from '../src/services/authService';
 import AuthGuard from './components/AuthGuard';
 
 export default function Profile() {
@@ -19,7 +19,7 @@ export default function Profile() {
   const loadUserData = async () => {
     try {
       setLoading(true);
-      
+
       // Get current user info
       const userData = await AuthService.getUser();
       setUser(userData);
@@ -83,107 +83,66 @@ export default function Profile() {
 
   return (
     <AuthGuard>
-      <SafeAreaView style={styles.container}>
-        <ScrollView style={styles.scrollView}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-              <Text style={styles.backButtonText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Profile & Activity</Text>
-          </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+        {/* Header */}
+        <View style={styles.profileHeaderRow}>
+          <TouchableOpacity style={styles.profileBackBtn} onPress={() => router.back()}>
+            <Text style={styles.profileBackArrow}>‹</Text>
+          </TouchableOpacity>
+          <Text style={styles.profileHeaderTitle}>Settings</Text>
+          <View style={{ width: 32 }} />
+        </View>
 
-          {/* User Info Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>User Information</Text>
-            <View style={styles.userCard}>
-              <View style={styles.userAvatar}>
-                <Text style={styles.userInitial}>
-                  {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-                </Text>
-              </View>
-              <View style={styles.userInfo}>
-                <Text style={styles.userName}>{user?.full_name || 'User'}</Text>
-                <Text style={styles.userEmail}>{user?.email}</Text>
-                <Text style={styles.userId}>User ID: {user?.id}</Text>
-              </View>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 0 }}>
+          {/* Profile Card */}
+          <View style={styles.profileCard}>
+            <View style={styles.profileAvatarCircle}>
+              <Text style={styles.profileAvatarText}>
+                {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+              </Text>
+            </View>
+            <View>
+              <Text style={styles.profileName}>{user?.full_name || 'User Name'}</Text>
+              <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
             </View>
           </View>
 
-          {/* View Toggle */}
-          <View style={styles.section}>
-            <View style={styles.toggleContainer}>
-              <TouchableOpacity 
-                style={[styles.toggleButton, !showAdminView && styles.toggleButtonActive]}
-                onPress={() => setShowAdminView(false)}
-              >
-                <Text style={[styles.toggleText, !showAdminView && styles.toggleTextActive]}>
-                  My Activities
-                </Text>
-              </TouchableOpacity>
-              {allActivities.length > 0 && (
-                <TouchableOpacity 
-                  style={[styles.toggleButton, showAdminView && styles.toggleButtonActive]}
-                  onPress={() => setShowAdminView(true)}
-                >
-                  <Text style={[styles.toggleText, showAdminView && styles.toggleTextActive]}>
-                    All Users (Admin)
-                  </Text>
-                </TouchableOpacity>
-              )}
+          {/* App Settings */}
+          <View style={styles.profileSection}>
+            <Text style={styles.profileSectionTitle}>App Settings</Text>
+            <View style={styles.profileSettingRow}>
+              <Text style={styles.profileSettingLabel}>Push Notifications</Text>
+              <View style={styles.profileSwitch} />
             </View>
+            <Text style={styles.profileSettingSub}>Receive chat notifications</Text>
+            <View style={styles.profileSettingRow}>
+              <Text style={styles.profileSettingLabel}>Dark Mode</Text>
+              <View style={[styles.profileSwitch, { backgroundColor: '#E0DED9' }]} />
+            </View>
+            <Text style={styles.profileSettingSub}>Use dark theme</Text>
           </View>
 
-          {/* Activities Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {showAdminView ? 'All User Activities (Admin View)' : 'My Recent Activities'}
-            </Text>
-            <Text style={styles.sectionSubtitle}>
-              {showAdminView ? 
-                `Monitoring ${allActivities.length} activities from all users` : 
-                `Your last ${activities.length} activities`
-              }
-            </Text>
-            
-            {(showAdminView ? allActivities : activities).map((activity, index) => (
-              <View key={index} style={styles.activityCard}>
-                <View style={styles.activityHeader}>
-                  <Text style={styles.activityAction}>{activity.action}</Text>
-                  <Text style={styles.activityDate}>{formatDate(activity.timestamp)}</Text>
-                </View>
-                {showAdminView && (
-                  <Text style={styles.activityUser}>User: {activity.user_name}</Text>
-                )}
-                {activity.endpoint && (
-                  <Text style={styles.activityEndpoint}>Endpoint: {activity.endpoint}</Text>
-                )}
-                {activity.ip_address && (
-                  <Text style={styles.activityIP}>IP: {activity.ip_address}</Text>
-                )}
-                {activity.details && (
-                  <Text style={styles.activityDetails}>{activity.details}</Text>
-                )}
-              </View>
-            ))}
+          {/* Account Section */}
+          <View style={styles.profileSection}>
+            <Text style={styles.profileSectionTitle}>Account</Text>
+            <TouchableOpacity style={styles.profileLinkRow}>
+              <Text style={styles.profileLinkText}>Change Password</Text>
+              <Text style={styles.profileLinkArrow}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileLinkRow}>
+              <Text style={styles.profileLinkText}>Privacy Policy</Text>
+              <Text style={styles.profileLinkArrow}>›</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.profileLinkRow}>
+              <Text style={styles.profileLinkText}>Terms of Service</Text>
+              <Text style={styles.profileLinkArrow}>›</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Actions Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Actions</Text>
-            
-            <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/chatbot_protected')}>
-              <Text style={styles.actionButtonText}>Go to Chat</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.actionButton} onPress={loadUserData}>
-              <Text style={styles.actionButtonText}>Refresh Data</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.actionButton, styles.signOutButton]} onPress={handleSignOut}>
-              <Text style={[styles.actionButtonText, styles.signOutButtonText]}>Sign Out</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Sign Out */}
+          <TouchableOpacity style={styles.profileSignOutBtn} onPress={handleSignOut}>
+            <Text style={styles.profileSignOutText}>Sign Out</Text>
+          </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
     </AuthGuard>
@@ -208,45 +167,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6c757d',
   },
-  header: {
+
+  /* Profile Header */
+  profileHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
+    justifyContent: 'space-between',
   },
-  backButton: {
-    marginRight: 16,
+  profileBackBtn: {
+    width: 32,
   },
-  backButtonText: {
-    fontSize: 16,
+  profileBackArrow: {
+    fontSize: 24,
     color: '#8B7355',
-    fontWeight: '500',
   },
-  headerTitle: {
+  profileHeaderTitle: {
     fontSize: 20,
     fontWeight: '600',
     color: '#2c2c2c',
   },
-  section: {
-    backgroundColor: '#fff',
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c2c2c',
-    marginBottom: 4,
-  },
-  sectionSubtitle: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginBottom: 16,
-  },
-  userCard: {
+
+  /* Profile Card */
+  profileCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 16,
@@ -254,8 +200,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e9ecef',
+    margin: 12,
   },
-  userAvatar: {
+  profileAvatarCircle: {
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -264,114 +211,82 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  userInitial: {
+  profileAvatarText: {
     color: '#fff',
     fontSize: 24,
     fontWeight: '600',
   },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
+  profileName: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2c2c2c',
     marginBottom: 4,
   },
-  userEmail: {
+  profileEmail: {
     fontSize: 14,
     color: '#6c757d',
-    marginBottom: 2,
   },
-  userId: {
-    fontSize: 12,
-    color: '#adb5bd',
-  },
-  toggleContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    padding: 4,
-  },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 8,
+
+  /* Sections */
+  profileSection: {
+    backgroundColor: '#fff',
+    marginTop: 8,
     paddingHorizontal: 16,
-    borderRadius: 6,
-    alignItems: 'center',
+    paddingVertical: 20,
   },
-  toggleButtonActive: {
-    backgroundColor: '#8B7355',
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#6c757d',
-  },
-  toggleTextActive: {
-    color: '#fff',
-  },
-  activityCard: {
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
+  profileSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2c2c2c',
     marginBottom: 8,
-    borderLeftWidth: 3,
-    borderLeftColor: '#8B7355',
   },
-  activityHeader: {
+  profileSettingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginTop: 8,
   },
-  activityAction: {
+  profileSettingLabel: {
     fontSize: 16,
-    fontWeight: '500',
     color: '#2c2c2c',
-    textTransform: 'capitalize',
   },
-  activityDate: {
+  profileSwitch: {
+    width: 40,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#f0f0f0',
+  },
+  profileSettingSub: {
     fontSize: 12,
     color: '#6c757d',
+    marginLeft: 4,
+    marginBottom: 8,
   },
-  activityUser: {
-    fontSize: 14,
-    color: '#8B7355',
-    fontWeight: '500',
-    marginBottom: 2,
+  profileLinkRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
   },
-  activityEndpoint: {
-    fontSize: 12,
+  profileLinkText: {
+    fontSize: 16,
+    color: '#2c2c2c',
+  },
+  profileLinkArrow: {
+    fontSize: 18,
     color: '#6c757d',
-    marginBottom: 2,
   },
-  activityIP: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginBottom: 2,
-  },
-  activityDetails: {
-    fontSize: 12,
-    color: '#495057',
-    fontStyle: 'italic',
-  },
-  actionButton: {
-    backgroundColor: '#8B7355',
+
+  /* Sign Out */
+  profileSignOutBtn: {
+    margin: 16,
+    backgroundColor: '#dc3545',
     padding: 16,
     borderRadius: 8,
     alignItems: 'center',
-    marginBottom: 12,
   },
-  actionButtonText: {
+  profileSignOutText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '500',
-  },
-  signOutButton: {
-    backgroundColor: '#dc3545',
-  },
-  signOutButtonText: {
-    color: '#fff',
   },
 });

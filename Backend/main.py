@@ -9,13 +9,20 @@ import os
 
 from routes.auth_routes import router as auth_router
 from routes.admin_routes import router as admin_router
+from routes.chat_routes import router as chat_router
+from routes.session_routes import router as session_router
+from routes.employee_routes import router as employee_router
 from middleware.auth_middleware import get_current_active_user
 from models.user import User
 from controllers.auth import log_user_activity
 from config.database import get_db
+
+# Ensure project root is in sys.path for retriever import
 import sys
 import os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 from retriever import get_context
 
 app = FastAPI()
@@ -37,6 +44,9 @@ app.add_middleware(
 # Register routers
 app.include_router(auth_router)
 app.include_router(admin_router)
+app.include_router(chat_router)
+app.include_router(session_router)
+app.include_router(employee_router)
 
 # Serve admin dashboard
 @app.get("/admin", response_class=HTMLResponse)
@@ -98,4 +108,4 @@ async def chat_endpoint(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

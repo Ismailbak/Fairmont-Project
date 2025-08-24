@@ -16,6 +16,8 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    
+
     # Relationship to UserActivity (using string reference to avoid circular imports)
     activities = relationship("UserActivity", back_populates="user", lazy='dynamic')
+    # Relationship to Tasks
+    tasks = relationship("Task", back_populates="user", lazy='dynamic')

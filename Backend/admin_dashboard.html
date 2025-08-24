@@ -266,23 +266,50 @@
             <p style="color: #6b7280; font-size: 1.1rem;">Monitor user activities and system statistics</p>
         </div>
 
-        <!-- User Statistics Section -->
-        <div id="userStatsContent" class="mb-8">
-            <!-- User statistics will be loaded here -->
-        </div>
 
-                    <!-- Recent Activities Section -->
-            <div id="recentActivitiesContent" class="mb-8">
-                <!-- Recent activities will be loaded here -->
-            </div>
-
-            <!-- User Details Section -->
-            <div id="userDetailsContent" class="mb-8">
-                <h2 style="font-size: 1.5rem; font-weight: bold; color: #1f2937; margin-bottom: 20px;">User Details & Passwords</h2>
-                <div id="userDetailsList">
-                    <!-- User details will be loaded here -->
+                <!-- Admin Add Data Section -->
+                <div id="adminAddData" class="mb-8" style="margin-bottom: 40px;">
+                    <h2 style="font-size: 1.5rem; font-weight: bold; color: #1f2937; margin-bottom: 20px;">Add Task, Event, or Meeting</h2>
+                    <form id="addTaskForm" style="margin-bottom: 18px; background: #f8fafc; padding: 18px; border-radius: 8px;">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; color: #8B7355; margin-bottom: 10px;">Add Task</h3>
+                        <input type="text" id="taskTitle" placeholder="Task Title" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <input type="date" id="taskDue" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <button type="submit" style="background: #8B7355; color: #fff; padding: 7px 18px; border: none; border-radius: 4px; font-weight: 600;">Add Task</button>
+                        <span id="taskAddMsg" style="margin-left: 12px; color: #10b981;"></span>
+                    </form>
+                    <form id="addEventForm" style="margin-bottom: 18px; background: #f8fafc; padding: 18px; border-radius: 8px;">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; color: #8B7355; margin-bottom: 10px;">Add Event</h3>
+                        <input type="text" id="eventTitle" placeholder="Event Title" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <input type="date" id="eventDate" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <button type="submit" style="background: #8B7355; color: #fff; padding: 7px 18px; border: none; border-radius: 4px; font-weight: 600;">Add Event</button>
+                        <span id="eventAddMsg" style="margin-left: 12px; color: #10b981;"></span>
+                    </form>
+                    <form id="addMeetingForm" style="background: #f8fafc; padding: 18px; border-radius: 8px;">
+                        <h3 style="font-size: 1.1rem; font-weight: 600; color: #8B7355; margin-bottom: 10px;">Add Meeting</h3>
+                        <input type="text" id="meetingTitle" placeholder="Meeting Title" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <input type="time" id="meetingTime" required style="margin-right: 10px; padding: 6px; border-radius: 4px; border: 1px solid #ccc;" />
+                        <button type="submit" style="background: #8B7355; color: #fff; padding: 7px 18px; border: none; border-radius: 4px; font-weight: 600;">Add Meeting</button>
+                        <span id="meetingAddMsg" style="margin-left: 12px; color: #10b981;"></span>
+                    </form>
                 </div>
-            </div>
+
+                <!-- User Statistics Section -->
+                <div id="userStatsContent" class="mb-8">
+                        <!-- User statistics will be loaded here -->
+                </div>
+
+                <!-- Recent Activities Section -->
+                <div id="recentActivitiesContent" class="mb-8">
+                        <!-- Recent activities will be loaded here -->
+                </div>
+
+                <!-- User Details Section -->
+                <div id="userDetailsContent" class="mb-8">
+                        <h2 style="font-size: 1.5rem; font-weight: bold; color: #1f2937; margin-bottom: 20px;">User Details & Passwords</h2>
+                        <div id="userDetailsList">
+                                <!-- User details will be loaded here -->
+                        </div>
+                </div>
 
         <!-- Logout Button -->
         <div style="text-align: center; margin-top: 30px;">
@@ -293,9 +320,99 @@
     </div>
 
     <script>
-        // Initialize global variables
-        let authToken = null;
-        const API_BASE = 'http://localhost:8001';
+    // Initialize global variables
+    let authToken = null;
+    const API_BASE = 'http://localhost:8001'; // Change to your backend base URL if needed
+                // --- Add Task/Event/Meeting Logic ---
+                document.addEventListener('DOMContentLoaded', function() {
+                    // Add Task
+                    const addTaskForm = document.getElementById('addTaskForm');
+                    if (addTaskForm) {
+                        addTaskForm.addEventListener('submit', async function(e) {
+                            e.preventDefault();
+                            const title = document.getElementById('taskTitle').value;
+                            const due = document.getElementById('taskDue').value;
+                            const msg = document.getElementById('taskAddMsg');
+                            try {
+                                const res = await fetch(`${API_BASE}/api/employee/tasks`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${authToken}`
+                                    },
+                                    body: JSON.stringify({ title, due })
+                                });
+                                if (res.ok) {
+                                    msg.textContent = 'Task added!';
+                                    addTaskForm.reset();
+                                } else {
+                                    msg.textContent = 'Failed to add task.';
+                                }
+                            } catch {
+                                msg.textContent = 'Error adding task.';
+                            }
+                            setTimeout(() => { msg.textContent = ''; }, 3000);
+                        });
+                    }
+                    // Add Event
+                    const addEventForm = document.getElementById('addEventForm');
+                    if (addEventForm) {
+                        addEventForm.addEventListener('submit', async function(e) {
+                            e.preventDefault();
+                            const title = document.getElementById('eventTitle').value;
+                            const date = document.getElementById('eventDate').value;
+                            const msg = document.getElementById('eventAddMsg');
+                            try {
+                                const res = await fetch(`${API_BASE}/api/employee/events`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${authToken}`
+                                    },
+                                    body: JSON.stringify({ title, date })
+                                });
+                                if (res.ok) {
+                                    msg.textContent = 'Event added!';
+                                    addEventForm.reset();
+                                } else {
+                                    msg.textContent = 'Failed to add event.';
+                                }
+                            } catch {
+                                msg.textContent = 'Error adding event.';
+                            }
+                            setTimeout(() => { msg.textContent = ''; }, 3000);
+                        });
+                    }
+                    // Add Meeting
+                    const addMeetingForm = document.getElementById('addMeetingForm');
+                    if (addMeetingForm) {
+                        addMeetingForm.addEventListener('submit', async function(e) {
+                            e.preventDefault();
+                            const title = document.getElementById('meetingTitle').value;
+                            const time = document.getElementById('meetingTime').value;
+                            const msg = document.getElementById('meetingAddMsg');
+                            try {
+                                const res = await fetch(`${API_BASE}/api/employee/meetings`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${authToken}`
+                                    },
+                                    body: JSON.stringify({ title, time })
+                                });
+                                if (res.ok) {
+                                    msg.textContent = 'Meeting added!';
+                                    addMeetingForm.reset();
+                                } else {
+                                    msg.textContent = 'Failed to add meeting.';
+                                }
+                            } catch {
+                                msg.textContent = 'Error adding meeting.';
+                            }
+                            setTimeout(() => { msg.textContent = ''; }, 3000);
+                        });
+                    }
+                });
         
         // Log script loading
         console.log('Admin dashboard script loaded');

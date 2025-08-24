@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { AuthService } from '../services/authService';
+import { AuthService } from '../../src/services/authService';
 
 export default function AuthGuard({ children }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

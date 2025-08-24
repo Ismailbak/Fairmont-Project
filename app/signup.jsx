@@ -1,7 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { AuthService } from './services/authService';
+import { AuthService } from '../src/services/authService';
 
 export default function SignUp() {
   const [fullName, setFullName] = useState('');

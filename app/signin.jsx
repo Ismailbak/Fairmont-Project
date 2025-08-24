@@ -1,7 +1,7 @@
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, SafeAreaView, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { AuthService } from './services/authService';
+import { AuthService } from '../src/services/authService';
 
 const SocialIcon = ({ source, onPress }) => (
   <TouchableOpacity style={styles.socialIcon} onPress={onPress}>
@@ -25,7 +25,11 @@ export default function SignIn() {
     try {
       const result = await AuthService.signin(email, password);
       Alert.alert('Success', 'Signed in successfully!');
-      router.replace('/chatbot');
+      if (email.endsWith('@fairmont.com')) {
+        router.replace('/employee_dashboard');
+      } else {
+        router.replace('/chatbot');
+      }
     } catch (error) {
       Alert.alert('Error', error.message || 'Sign in failed');
     } finally {
