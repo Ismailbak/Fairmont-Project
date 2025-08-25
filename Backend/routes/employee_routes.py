@@ -18,7 +18,7 @@ class TaskResponse(BaseModel):
     description: str = None
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class EventResponse(BaseModel):
     id: int
@@ -27,7 +27,7 @@ class EventResponse(BaseModel):
     description: str = None
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class MeetingResponse(BaseModel):
     id: int
@@ -36,7 +36,7 @@ class MeetingResponse(BaseModel):
     description: str = None
     created_at: datetime
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 @router.get("/tasks", response_model=List[TaskResponse])
 def get_tasks(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):

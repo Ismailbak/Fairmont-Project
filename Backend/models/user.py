@@ -19,5 +19,9 @@ class User(Base):
 
     # Relationship to UserActivity (using string reference to avoid circular imports)
     activities = relationship("UserActivity", back_populates="user", lazy='dynamic')
+
     # Relationship to Tasks
     tasks = relationship("Task", back_populates="user", lazy='dynamic')
+
+# Fix circular import for SQLAlchemy relationships
+from .employee_data import Task
