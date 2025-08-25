@@ -1,187 +1,182 @@
-# Fairmont Mobile App
+---
 
-A React Native mobile application for Fairmont Hotels with an integrated AI chatbot powered by a local knowledge base.
+## Node.js in This Project
+
+Node.js is used **only** for the React Native (Expo) mobile app development workflow:
+- Running the Expo/React Native development server and build tools
+- Managing frontend dependencies via `npm` and `package.json`
+- Running scripts for starting the app, backend, or both in development
+
+**All backend logic, APIs, and AI integration are handled by Python (FastAPI). Node.js does not serve as a backend server in this project.**
+
+---
+---
+
+## AI Model Integration (Llama/Ollama/Mistral)
+
+This project uses a real LLM (Large Language Model) for chatbot responses, running locally via [Ollama](https://ollama.com/) or compatible APIs.
+
+### Supported Models
+- **Llama 2** (default, fast and CPU-friendly)
+- **Mistral** (optional, for more advanced responses)
+
+### How It Works
+- The backend (`Backend/controllers/chat.py`) sends user prompts to the local Ollama server (default: `http://localhost:11434/api/generate`).
+- The model generates a response, which is returned to the mobile app.
+- The knowledge base (`Backend/knowledge.txt`) is used to provide context for hotel-specific questions.
+
+### Model Setup Instructions
+1. **Install Ollama** ([see official instructions](https://ollama.com/download))
+2. **Download a model** (e.g., Llama 2):
+	```bash
+	ollama pull llama2
+	# or for Mistral:
+	ollama pull mistral
+	```
+3. **Start the Ollama server** (usually starts automatically):
+	```bash
+	ollama serve
+	```
+4. **Test the model**:
+	```bash
+	ollama run llama2
+	```
+5. **Ensure the backend can reach Ollama at `http://localhost:11434`**
+
+**Note:** You can change the model or Ollama endpoint in `Backend/controllers/chat.py`.
+
+---
+
+# Fairmont Mobile & Backend Platform
+
+An advanced mobile and backend platform for Fairmont Hotels, featuring:
+- A modern React Native app (Expo) for guests and Heartists (employees)
+- A FastAPI Python backend with AI chatbot, multi-session chat, and admin dashboard
+- Personalized Heartist dashboard, admin data entry, and secure authentication
+
+---
+
+## Features
+
+- **AI Chatbot**: Real hotel assistant powered by Llama/Ollama models and a local knowledge base
+- **Heartist Dashboard**: Personalized dashboard for employees, with tasks, events, and meetings
+- **Admin Dashboard**: Web UI for admins to add/manage employee data and monitor activity
+- **Multi-session Chat**: Per-user chat history, session management, and protected chat UI
+- **Modern UI/UX**: Beautiful, branded, and responsive design for both guests and Heartists
+- **Secure Auth**: JWT authentication, protected routes, and role-based access
+- **Cross-platform**: Works on iOS, Android, and web (Expo)
+
+---
 
 ## Project Structure
 
 ```
 fairmont-mobile/
-├── app/                    # React Native app screens
-│   ├── chatbot.jsx        # AI chatbot interface
-│   ├── config.js          # App configuration
-│   ├── index.jsx          # Main app screen
-│   ├── login.jsx          # Login screen
-│   ├── settings.jsx       # Settings screen
-│   └── ...                # Other screens
-├── Backend/               # Node.js backend server
-│   ├── server.js          # Express server
-│   ├── retriever.py       # Python knowledge retriever
-│   ├── knowledge.txt      # Hotel knowledge base
-│   ├── package.json       # Backend dependencies
-│   └── README.md          # Backend documentation
-├── assets/                # App assets (images, icons)
-└── package.json           # Frontend dependencies
+├── app/                    # React Native app screens (chatbot, Heartist dashboard, profile, etc.)
+├── src/services/           # API service modules
+├── assets/                 # Images, icons, and branding
+├── Backend/                # FastAPI backend (Python)
+│   ├── main.py             # FastAPI entrypoint
+│   ├── routes/             # API route modules
+│   ├── controllers/        # Business logic (AI, chat, etc.)
+│   ├── models/             # SQLAlchemy models (User, Task, etc.)
+│   ├── static/             # Admin dashboard HTML/CSS/JS
+│   ├── knowledge.txt       # AI knowledge base
+│   └── ...
+└── package.json            # Frontend dependencies/scripts
 ```
 
-## Features
+---
 
-- **AI Chatbot**: Intelligent hotel assistant with local knowledge base
-- **Modern UI**: Beautiful, responsive design with Fairmont branding
-- **Real-time Chat**: Instant responses from the AI system
-- **Cross-platform**: Works on iOS and Android
+## Getting Started
 
-## Prerequisites
+### Prerequisites
 
-- Node.js (v16 or higher)
-- Python (v3.7 or higher)
-- Expo CLI
-- iOS Simulator (for iOS development)
-- Android Studio (for Android development)
-
-## Setup Instructions
+- Node.js (v16+)
+- Python 3.11+
+- Expo CLI (`npm install -g expo-cli`)
+- (Optional) Android Studio/iOS Simulator for device testing
 
 ### 1. Install Dependencies
 
 ```bash
-# Install frontend dependencies
+# Frontend
 npm install
 
-# Install backend dependencies
+# Backend (Python)
 cd Backend
-npm install
+pip install -r requirements.txt
 cd ..
 ```
 
-### 2. Start the Backend Server
+### 2. Configure Environment
+
+- Edit `src/config.js` to set your backend API base URL (LAN IP for device testing)
+- Backend runs on port 8080 by default (see `Backend/main.py`)
+
+### 3. Run the Backend
 
 ```bash
-# Start the backend server (development mode)
-npm run backend:dev
-
-# Or start it manually
 cd Backend
-npm run dev
+python main.py
+# Or use: uvicorn main:app --reload --host 0.0.0.0 --port 8080
 ```
 
-The backend will start on `http://localhost:3000`
-
-### 3. Start the Mobile App
+### 4. Run the Mobile App
 
 ```bash
-# Start both backend and frontend simultaneously
-npm run dev
-
-# Or start them separately
-npm start  # Frontend only
+# In project root
+npm start
+# Or: expo start
 ```
 
-### 4. Run on Device/Simulator
+---
 
-- **iOS**: Press `i` in the terminal or run `npm run ios`
-- **Android**: Press `a` in the terminal or run `npm run android`
-- **Web**: Press `w` in the terminal or run `npm run web`
+## Usage
 
-## API Endpoints
+- **Chatbot**: Guests and Heartists can chat with the AI assistant (multi-session, history, real LLM responses)
+- **Heartist Dashboard**: Employees see personalized tasks, events, and meetings
+- **Profile**: View user info, activity, and admin monitoring
+- **Admin Dashboard**: Visit `/admin` in browser to add/manage tasks, events, meetings for Heartists
 
-### Backend API
+---
 
-- `GET /` - Health check
-- `GET /api/health` - Health check endpoint
-- `POST /api/chat` - Chat endpoint
+## Backend API (FastAPI)
 
-### Chat API Usage
+- `POST /api/auth/signin` - User login
+- `GET /api/session/list` - List chat sessions
+- `POST /api/session/new` - Create new chat session
+- `POST /api/chat/message` - Send message to AI
+- `GET/POST /api/employee/tasks` - Get/add tasks (admin only for POST)
+- `GET/POST /api/employee/events` - Get/add events (admin only for POST)
+- `GET/POST /api/employee/meetings` - Get/add meetings (admin only for POST)
 
-```javascript
-// Example API call
-const response = await fetch('http://localhost:3000/api/chat', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({
-    message: 'What are the spa opening hours?'
-  })
-});
+See `Backend/routes/` for full API details.
 
-const data = await response.json();
-console.log(data.context); // AI response
-```
+---
 
-## Configuration
+## Customization & Development
 
-### Backend Configuration
+- **Frontend**: Edit screens in `app/`, services in `src/services/`, and config in `src/config.js`
+- **Backend**: Edit API logic in `Backend/routes/`, models in `Backend/models/`, and AI logic in `Backend/controllers/chat.py`
+- **Knowledge Base**: Update `Backend/knowledge.txt` to improve AI answers
 
-Edit `Backend/server.js` to modify:
-- Server port (default: 3000)
-- Python path
-- CORS settings
-
-### Frontend Configuration
-
-Edit `app/config.js` to modify:
-- API base URL
-- App settings
-- Endpoint URLs
-
-## Development
-
-### Backend Development
-
-The backend uses:
-- **Express.js** for the web server
-- **Python** for AI knowledge retrieval
-- **python-shell** for Node.js/Python integration
-
-### Frontend Development
-
-The frontend uses:
-- **React Native** with Expo
-- **Expo Router** for navigation
-- **Modern JavaScript** features
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Backend not starting**: Check if Python is installed and accessible
-2. **API connection errors**: Verify the backend is running on port 3000
-3. **Mobile app not connecting**: Check network settings and localhost access
-
-### Debug Commands
-
-```bash
-# Check if backend is running
-curl http://localhost:3000/api/health
-
-# Test Python retriever
-cd Backend
-python retriever.py "test message"
-
-# Check mobile app logs
-npx expo logs
-```
-
-## Knowledge Base
-
-The AI system uses a local knowledge base (`Backend/knowledge.txt`) containing information about:
-- Hotel services and amenities
-- Spa and wellness facilities
-- Security procedures
-- Guest services
-- And more...
+---
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+1. Fork the repo and create a feature branch
+2. Make your changes and test thoroughly
+3. Submit a pull request with a clear description
+
+---
 
 ## License
 
-This project is proprietary to Fairmont Hotels.
+This project is proprietary to Fairmont Hotels. All rights reserved.
+
+---
 
 ## Support
 
-For technical support, contact the development team. 
+For technical support, contact the development team or open an issue.
