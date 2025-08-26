@@ -28,7 +28,11 @@ export default function SignUp() {
         password: password
       });
       Alert.alert('Success', 'Account created successfully!');
-      router.replace('/chatbot');
+      if (email.toLowerCase().endsWith('@fairmont.com')) {
+        router.replace('/employee_dashboard');
+      } else {
+        router.replace('/chatbot');
+      }
     } catch (error) {
       Alert.alert('Error', error.message || 'Registration failed');
     } finally {

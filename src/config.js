@@ -1,7 +1,7 @@
 
 export const CONFIG = {
 	API: {
-		BASE_URL: 'http://172.20.10.9:8080',  // Backend API server port (updated)
+		BASE_URL: 'http://10.16.16.64:8080',  // Backend API server port (updated)
 		ENDPOINTS: {
 			// Authentication endpoints
 			SIGNUP: '/api/auth/signup',

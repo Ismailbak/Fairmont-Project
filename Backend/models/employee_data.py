@@ -12,6 +12,7 @@ class Task(Base):
     due = Column(String, nullable=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    completed = Column(Integer, default=0)  # 0 = not done, 1 = done
 
     user = relationship("User", back_populates="tasks")
 
@@ -23,6 +24,7 @@ class Event(Base):
     date = Column(String, nullable=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    rsvped = Column(Integer, default=0)  # 0 = not RSVPed, 1 = RSVPed
 
 class Meeting(Base):
     __tablename__ = "meetings"
@@ -32,3 +34,4 @@ class Meeting(Base):
     time = Column(String, nullable=True)
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    rsvped = Column(Integer, default=0)  # 0 = not RSVPed, 1 = RSVPed

@@ -1,3 +1,10 @@
+## PATCH endpoints moved below router and response model definitions
+from fastapi import HTTPException
+from sqlalchemy.exc import NoResultFound
+
+# --- PATCH: Mark task as done ---
+
+# (Move these endpoints after router and response model definitions)
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -15,7 +22,7 @@ class TaskResponse(BaseModel):
     id: int
     title: str
     due: str = None
-    description: str = None
+    description: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -24,7 +31,7 @@ class EventResponse(BaseModel):
     id: int
     title: str
     date: str = None
-    description: str = None
+    description: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
@@ -33,10 +40,43 @@ class MeetingResponse(BaseModel):
     id: int
     title: str
     time: str = None
-    description: str = None
+    description: str | None = None
     created_at: datetime
     class Config:
         from_attributes = True
+
+# --- PATCH: Mark task as done ---
+@router.patch("/tasks/{task_id}/done", response_model=TaskResponse)
+def mark_task_done(task_id: int, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    task = db.query(Task).filter(Task.id == task_id, Task.user_id == current_user.id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    task.completed = 1
+    db.commit()
+    db.refresh(task)
+    return task
+
+# --- PATCH: RSVP to event ---
+@router.patch("/events/{event_id}/rsvp", response_model=EventResponse)
+def rsvp_event(event_id: int, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    event = db.query(Event).filter(Event.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    event.rsvped = 1
+    db.commit()
+    db.refresh(event)
+    return event
+
+# --- PATCH: RSVP to meeting ---
+@router.patch("/meetings/{meeting_id}/rsvp", response_model=MeetingResponse)
+def rsvp_meeting(meeting_id: int, current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    meeting = db.query(Meeting).filter(Meeting.id == meeting_id).first()
+    if not meeting:
+        raise HTTPException(status_code=404, detail="Meeting not found")
+    meeting.rsvped = 1
+    db.commit()
+    db.refresh(meeting)
+    return meeting
 
 @router.get("/tasks", response_model=List[TaskResponse])
 def get_tasks(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):

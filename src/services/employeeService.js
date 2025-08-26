@@ -25,5 +25,35 @@ export const EmployeeService = {
     });
     if (!res.ok) throw new Error('Failed to fetch meetings');
     return await res.json();
+  },
+
+  async markTaskDone(taskId) {
+    const token = await AsyncStorage.getItem('auth_token');
+    const res = await fetch(getApiUrl(`/api/employee/tasks/${taskId}/done`), {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to mark task as done');
+    return await res.json();
+  },
+
+  async rsvpEvent(eventId) {
+    const token = await AsyncStorage.getItem('auth_token');
+    const res = await fetch(getApiUrl(`/api/employee/events/${eventId}/rsvp`), {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to RSVP to event');
+    return await res.json();
+  },
+
+  async rsvpMeeting(meetingId) {
+    const token = await AsyncStorage.getItem('auth_token');
+    const res = await fetch(getApiUrl(`/api/employee/meetings/${meetingId}/rsvp`), {
+      method: 'PATCH',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!res.ok) throw new Error('Failed to RSVP to meeting');
+    return await res.json();
   }
 };

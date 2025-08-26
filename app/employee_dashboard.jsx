@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import { EmployeeService } from '../src/services/employeeService';
-import { SafeAreaView, ScrollView, Text, View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { SafeAreaView, ScrollView, Text, View, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -15,6 +15,7 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState({ name: '', email: '' });
+  const [actionLoading, setActionLoading] = useState({});
 
   useEffect(() => {
     const fetchData = async () => {
@@ -117,12 +118,35 @@ export default function EmployeeDashboard() {
             {tasks.length === 0 && <Text style={styles.cardSubtitle}>No tasks assigned.</Text>}
             {tasks.map(task => (
               <View key={task.id} style={styles.card}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.taskIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>✓</Text></View>
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={styles.cardTitle}>{task.title}</Text>
-                    <Text style={styles.cardSubtitle}>Due: {task.due}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.taskIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>✓</Text></View>
+                    <View style={{ marginLeft: 10 }}>
+                      <Text style={styles.cardTitle}>{task.title}</Text>
+                      <Text style={styles.cardSubtitle}>Due: {task.due}</Text>
+                    </View>
                   </View>
+                  {task.completed ? (
+                    <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>Done</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.minimalBtn}
+                      disabled={!!actionLoading[`task_${task.id}`]}
+                      onPress={async () => {
+                        setActionLoading(l => ({ ...l, [`task_${task.id}`]: true }));
+                        try {
+                          await EmployeeService.markTaskDone(task.id);
+                          setTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: 1 } : t));
+                        } catch (e) {
+                          setError('Failed to mark task as done');
+                        } finally {
+                          setActionLoading(l => ({ ...l, [`task_${task.id}`]: false }));
+                        }
+                      }}
+                    >
+                      {actionLoading[`task_${task.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>Done</Text>}
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ))}
@@ -132,12 +156,35 @@ export default function EmployeeDashboard() {
             {events.length === 0 && <Text style={styles.cardSubtitle}>No events.</Text>}
             {events.map(event => (
               <View key={event.id} style={styles.card}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.eventIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>★</Text></View>
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={styles.cardTitle}>{event.title}</Text>
-                    <Text style={styles.cardSubtitle}>Date: {event.date}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.eventIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>★</Text></View>
+                    <View style={{ marginLeft: 10 }}>
+                      <Text style={styles.cardTitle}>{event.title}</Text>
+                      <Text style={styles.cardSubtitle}>Date: {event.date}</Text>
+                    </View>
                   </View>
+                  {event.rsvped ? (
+                    <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>RSVPed</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.minimalBtn}
+                      disabled={!!actionLoading[`event_${event.id}`]}
+                      onPress={async () => {
+                        setActionLoading(l => ({ ...l, [`event_${event.id}`]: true }));
+                        try {
+                          await EmployeeService.rsvpEvent(event.id);
+                          setEvents(ev => ev.map(e => e.id === event.id ? { ...e, rsvped: 1 } : e));
+                        } catch (e) {
+                          setError('Failed to RSVP to event');
+                        } finally {
+                          setActionLoading(l => ({ ...l, [`event_${event.id}`]: false }));
+                        }
+                      }}
+                    >
+                      {actionLoading[`event_${event.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ))}
@@ -147,14 +194,38 @@ export default function EmployeeDashboard() {
             {meetings.length === 0 && <Text style={styles.cardSubtitle}>No meetings.</Text>}
             {meetings.map(meeting => (
               <View key={meeting.id} style={styles.card}>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <View style={styles.meetingIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>⏰</Text></View>
-                  <View style={{ marginLeft: 10 }}>
-                    <Text style={styles.cardTitle}>{meeting.title}</Text>
-                    <Text style={styles.cardSubtitle}>Time: {meeting.time}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={styles.meetingIcon}><Text style={{ color: '#fff', fontWeight: 'bold' }}>⏰</Text></View>
+                    <View style={{ marginLeft: 10 }}>
+                      <Text style={styles.cardTitle}>{meeting.title}</Text>
+                      <Text style={styles.cardSubtitle}>Time: {meeting.time}</Text>
+                    </View>
                   </View>
+                  {meeting.rsvped ? (
+                    <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>RSVPed</Text>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.minimalBtn}
+                      disabled={!!actionLoading[`meeting_${meeting.id}`]}
+                      onPress={async () => {
+                        setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: true }));
+                        try {
+                          await EmployeeService.rsvpMeeting(meeting.id);
+                          setMeetings(ms => ms.map(m => m.id === meeting.id ? { ...m, rsvped: 1 } : m));
+                        } catch (e) {
+                          setError('Failed to RSVP to meeting');
+                        } finally {
+                          setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: false }));
+                        }
+                      }}
+                    >
+                      {actionLoading[`meeting_${meeting.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
+
             ))}
           </View>
         </>}
@@ -164,6 +235,24 @@ export default function EmployeeDashboard() {
 }
 
 const styles = StyleSheet.create({
+  minimalBtn: {
+    backgroundColor: '#fff',
+    borderColor: '#8B7355',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginLeft: 10,
+    minWidth: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
+  },
+  minimalBtnText: {
+    color: '#8B7355',
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
   headerBar: {
     flexDirection: 'row',
     alignItems: 'center',

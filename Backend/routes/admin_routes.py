@@ -1,5 +1,6 @@
 # Backend/routes/admin_routes.py
 
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
@@ -12,7 +13,25 @@ from middleware.auth_middleware import get_current_active_user
 from models.user import User
 from models.user_activity import UserActivity
 
+
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
+
+# Minimal user info for dropdowns
+class UserListItem(BaseModel):
+    user_id: int
+    full_name: str
+    email: str
+
+    class Config:
+        from_attributes = True
+
+@router.get("/users", response_model=List[UserListItem])
+def get_users(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
+    """Get minimal user info for admin dropdowns (admin only)"""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    users = db.query(User).all()
+    return [UserListItem(user_id=u.id, full_name=u.full_name, email=u.email) for u in users]
 
 # Response models
 class UserActivityResponse(BaseModel):
