@@ -65,10 +65,17 @@ _SECTIONS_CACHE = None
 # Match relevant lines based on filtered keywords and extract sections
 def get_context(user_input: str) -> str:
     global _SECTIONS_CACHE
-    
     start_time = time.time()
     print(f"[DEBUG] Incoming message: {user_input}")
     knowledge = load_knowledge()
+    if not knowledge:
+        return "Knowledge base is unavailable. Please contact the administrator."
+    # Always include the most up-to-date spa hours if the question is spa-related
+    spa_hours = None
+    for line in knowledge.split('\n'):
+        if 'spa' in line.lower() and 'open' in line.lower() and 'hour' in line.lower():
+            spa_hours = line.strip()
+            break
     
     # Use cached sections if available
     if _SECTIONS_CACHE is None:
@@ -210,9 +217,9 @@ def get_context(user_input: str) -> str:
     # Special handling for wellness facilities questions (optimized)
     spa_related_words = {'wellness', 'spa', 'fitness', 'hammam', 'facilities'}
     if any(word in user_input_lower for word in spa_related_words) or any(word in keywords for word in spa_related_words):
-        # Quick answer for spa-related questions
-        if 'spa' in user_input_lower or 'wellness' in user_input_lower:
-            return "Our hotel features a luxury spa with traditional hammam, massage treatments, and wellness facilities. The spa is open daily from 9:00 AM to 8:00 PM."
+        # Always prepend the most up-to-date spa hours if found
+        if spa_hours:
+            return f"{spa_hours}\n\n" + knowledge
     
     # Special handling for location questions
     location_related_words = {'where', 'location', 'address', 'located', 'find'}

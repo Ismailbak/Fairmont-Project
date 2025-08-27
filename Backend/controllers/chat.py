@@ -38,94 +38,80 @@ def check_ollama_status():
 def generate_ai_response(message: str):
     """Generate a response using the AI model, enhanced with knowledge base context."""
     start_time = time.time()
-    print(f"\n{'='*50}")
-    print(f"[TIMING] Starting response generation for: '{message}'")
-    print(f"{'='*50}")
-    
-    # Get context from knowledge base to help the AI
+
+    # Single retriever call: we'll always pass context to the model, but we won't
+    # use the retriever as a replacement for the model's generation.
     context = get_context(message)
-    print(f"[INFO] Retrieved context: {context[:50]}..." if context else "[INFO] No relevant context found")
-    
-    # Check if Ollama is available
-    ollama_available = check_ollama_status()
-    if not ollama_available:
-        print("[WARNING] Ollama is not available, using fallback response")
-        # Always provide a helpful response rather than raw context
-        return "I apologize, but our AI service is temporarily unavailable. For immediate assistance, please contact our concierge desk at extension 9, available 24 hours a day."
-    
+
+    # Truncate context to keep prompt size reasonable for faster generation
+    if context is None:
+        context = ""
+    max_context_chars = 4000  # Remove word/length limit for context
+    if len(context) > max_context_chars:
+        context = context[:max_context_chars].rsplit('\n', 1)[0] + "..."
+
+    # Streamlined system prompt aimed at concise answers and speed
+    system_prompt = (
+        "You are Fairmont Tazi Palace Tangier's AI Assistant.\n"
+        "Be concise, professional, and helpful. Prioritize direct answers and keep replies under 100 words when possible.\n"
+    )
+
+    # Assemble prompt
+    prompt = (
+        f"{system_prompt}\n"
+        f"HOTEL KNOWLEDGE:\n{context}\n\n"
+        f"Guest: {message}\nAssistant:"
+    )
+
+    # Tuned generation options for lower latency while retaining quality
+    payload = {
+        "model": "mistral",
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_predict": 128,      # Allow longer responses
+            "temperature": 0.2,
+            "top_p": 0.9,
+            "top_k": 10,
+            "max_length": 512       # Allow longer responses
+        }
+    }
+
     try:
-        # Build an optimized prompt for the AI
-        system_prompt = """You are Fairmont Tazi Palace Tangier's AI Assistant.
+        # Make the model call (no timeout per your request)
+        response = requests.post("http://localhost:11434/api/generate", json=payload)
 
-ROLE: You are the official AI concierge for Fairmont Tazi Palace Tangier, a luxury hotel in Morocco.
+        if response.status_code != 200:
+            print(f"[ERROR] Model API returned {response.status_code}")
+            return "I apologize, the assistant is temporarily unable to generate a response. Please try again shortly."
 
-TONE:
-- Professional and courteous
-- Warm and personable
-- Confident in your knowledge
-- Helpful and attentive
+        data = response.json()
+        ai_response = data.get("response", "").strip()
 
-GUIDELINES:
-- Answer all guest questions about the hotel facilities, services, and amenities
-- Keep responses conversational but informative
-- Include specific details when available
-- For questions you don't have information about, gracefully suggest contacting the concierge
-- Address the guest respectfully
-- Never repeat the exact question back to the guest
+        if not ai_response:
+            return "I apologize, I'm unable to generate an answer right now. Please try again." 
 
-Always speak as if you represent the Fairmont Tazi Palace directly.
-"""
-        
-        # Enhanced context handling
-        context_prompt = ""
-        if context and not context.startswith("I couldn't find"):
-            # Format context nicely for the AI
-            context_prompt = f"\n\nRELEVANT HOTEL INFORMATION:\n{context}\n\n"
-        
-        # Complete prompt with better formatting
-        prompt = f"{system_prompt}{context_prompt}Guest: {message}\n\nHotel Assistant:"
-        
-            # Call Ollama API without timeout limitation
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json={
-                "model": "mistral",
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.2,  # Slightly higher for more natural responses
-                    "top_p": 0.9,
-                    "top_k": 40,
-                    "max_length": 500
-                }
-            }
-            # No timeout specified - let it take as long as needed
-        )        # Better response handling
-        if response.status_code == 200:
-            result = response.json()
-            ai_response = result.get("response", "")
-            
-            # Clean the response
-            ai_response = ai_response.strip()
-            
-            # Verify we got a meaningful response
-            if len(ai_response) < 10:
-                raise Exception("Response too short")
-                
-            end_time = time.time()
-            print(f"[SUCCESS] AI response generated in {end_time - start_time:.2f}s")
-            return ai_response
-            
-        else:
-            print(f"[ERROR] Ollama API returned status code: {response.status_code}")
-            raise Exception(f"API error: {response.status_code}")
-            
-    except Exception as e:
-        print(f"[ERROR] AI generation failed: {str(e)}")
+        # Post-process: avoid echoing user's exact question
+        user_lower = message.lower().strip()
+        if ai_response.lower().startswith(user_lower):
+            ai_response = ai_response[len(message):].strip()
+
+        # Cache the model response for faster repeat answers
+        cache_key = message.lower().strip()
+        with _CACHE_LOCK:
+            if len(_RESPONSE_CACHE) >= _CACHE_MAX_SIZE:
+                # prune 10% oldest entries
+                items_to_remove = max(1, int(_CACHE_MAX_SIZE * 0.1))
+                oldest_keys = sorted(_RESPONSE_CACHE.keys(), key=lambda k: _RESPONSE_CACHE[k]['timestamp'])[:items_to_remove]
+                for k in oldest_keys:
+                    del _RESPONSE_CACHE[k]
+            _RESPONSE_CACHE[cache_key] = {'response': ai_response, 'timestamp': time.time()}
+
+        return ai_response
+
+    except Exception:
         print(traceback.format_exc())
-        
-        # Use a generic response for all failures
-        return "I apologize, but I'm having trouble processing your request. For immediate assistance, please contact our concierge desk at extension 9."
+        return "I apologize — the assistant is currently experiencing issues generating responses. Please try again in a moment."
     
     # Check if we have a cached response - optimized for performance
     cache_check_start = time.time()
@@ -192,41 +178,8 @@ CORE INSTRUCTIONS:
 - Address ALL queries, even simple greetings
 - Use confident, authoritative language about hotel features
 - Be helpful and welcoming
-
-IMPORTANT:
-- Keep responses brief but complete (under 100 words when possible)
-- Prioritize direct answers over lengthy explanations
-- Always respond to greetings and simple questions
-- Focus on facts from the provided hotel knowledge"""
-
-    # Simplified parameters for more reliable responses
-    payload = {
-        "model": "mistral",
-        "prompt": (
-            f"{system_prompt}\n\n"
-            f"Use the following hotel information to help answer the guest's question. "
-            f"For questions not covered by this information, provide a helpful response based on general knowledge "
-            f"about luxury hotels while maintaining the Fairmont brand voice.\n\n"
-            f"HOTEL KNOWLEDGE:\n{context}\n\n"
-            f"Guest: {message}\nAssistant:"
-        ),
-        "stream": False,
-        "options": {
-            "num_predict": 100,      # Reduced for reliability
-            "temperature": 0.2,      # Lower temperature for deterministic outputs
-            "top_p": 0.9,            # Safer value
-            "top_k": 40,             # Default value
-            "seed": 42,              # Consistent seed
-            "stop": ["Guest:", "\nGuest", "User:"], # Prevent continuations
-            # Removed potentially unsupported parameters:
-            # - num_ctx
-            # - num_thread
-            # - num_gpu
-            # - num_batch
-            # - f16_kv
-            # - logits_all
-        }
-    }
+"""
+    # Removed duplicate/unfinished payload block. Only the correct payload assignment is kept above.
 
     try:
         # Streamlined prompt preparation - measure time
@@ -336,86 +289,23 @@ IMPORTANT:
     except requests.exceptions.Timeout:
         timeout_time = time.time() - model_start
         print(f"[ERROR] Ollama API request timed out after {timeout_time:.3f}s")
-        
-        # Total processing time on timeout
         total_time = time.time() - start_time
         print(f"[TIMING] Total processing time (with timeout): {total_time:.3f}s")
-        
-        # Provide specific answers for all types of messages including greetings
-        message_lower = message.lower()
-        
-        # Handle greetings specifically
-        if message_lower in {'hello', 'hi', 'hey', 'bonjour', 'salut', 'hola'} or message_lower.startswith(('hi ', 'hello ')):
-            return "Welcome to Fairmont Tazi Palace Tangier. I'm your virtual assistant ready to help with any questions about our hotel, amenities, or services. How may I assist you today?"
-        
-        # Location
-        if any(word in message_lower for word in ["where", "located", "location", "address", "find"]):
-            return "The Fairmont Tazi Palace Tangier is situated in the exclusive Boubana area, approximately 10 kilometers from the city center and 12 kilometers from Ibn Battouta Airport. Our property is nestled on a forested hillside offering magnificent panoramic views of the city and the Mediterranean Sea."
-        
-        # Check-in/Check-out
-        elif any(word in message_lower for word in ["check in", "check-in", "checkin"]):
-            return "Check-in begins at 3:00 PM. If you arrive earlier, we're happy to store your luggage and you can enjoy our facilities while your room is being prepared. Early check-in may be available based on occupancy."
-        
-        elif any(word in message_lower for word in ["check out", "check-out", "checkout"]):
-            return "Check-out time is at 12:00 PM (noon). Late check-out may be available upon request, subject to availability. Please contact the front desk to arrange this service."
-        
-        # Dining
-        elif any(word in message_lower for word in ["breakfast", "dining", "restaurant", "food"]):
-            return "Breakfast is served daily from 6:30 AM to 10:30 AM in our main restaurant. We offer multiple dining venues including Crudo (seafood), Parisa (Persian cuisine), and Clémentine for all-day dining. Our restaurants showcase exquisite culinary experiences with both local and international flavors."
-            
-        # Spa
-        elif any(word in message_lower for word in ["spa", "massage", "wellness", "pool"]):
-            return "Our 26,000 sq ft Fairmont Spa features 10 treatment rooms, a traditional hammam, vitality pool, private spa, beauty salon, and a state-of-the-art fitness center. The spa is open daily from 9:00 AM to 8:00 PM, offering a wide range of rejuvenating treatments."
-        
-        # Default timeout response
-        return "I apologize for the delay. I'd be happy to assist with your question about " + message + " if you could try again shortly. Alternatively, our concierge desk is available 24/7 at extension 9 for immediate assistance."
+        # No hardcoded fallback answers; just return a generic error
+        return "I apologize, the assistant is currently experiencing issues generating responses. Please try again in a moment."
     
     except requests.exceptions.ConnectionError as ce:
         conn_error_time = time.time() - model_start
         print(f"[ERROR] Ollama API connection error after {conn_error_time:.3f}s: {str(ce)}")
-        
-        # Total processing time on connection error
         total_time = time.time() - start_time
         print(f"[TIMING] Total processing time (with connection error): {total_time:.3f}s")
-        
-        # Attempt to provide helpful responses even during connection issues
-        message_lower = message.lower()
-        
-        # Common questions that we can answer without the model
-        # Location
-        if any(word in message_lower for word in ["where", "located", "location", "address", "find"]):
-            return "The Fairmont Tazi Palace Tangier is situated in the exclusive Boubana area, approximately 10 kilometers from the city center and 12 kilometers from Ibn Battouta Airport. Our property is nestled on a forested hillside offering magnificent panoramic views of the city and the Mediterranean Sea."
-        
-        # Services
-        elif any(word in message_lower for word in ["amenities", "services", "facilities", "offer"]):
-            return "Fairmont Tazi Palace Tangier offers an array of premium services including 24-hour room service, concierge assistance, valet parking, airport transfers, a stunning outdoor pool, a comprehensive fitness center, and our signature 26,000 sq ft Fairmont Spa. Our facilities are designed to provide an exceptional luxury experience throughout your stay."
-            
-        # Rooms
-        elif any(word in message_lower for word in ["room", "suite", "accommodation", "stay"]):
-            return "Our hotel features 133 luxuriously appointed rooms, suites, and penthouses, many with private terraces offering breathtaking views. Each accommodation is elegantly designed with modern amenities while honoring the property's historical legacy and Moroccan heritage."
-            
-        # Default connection error response - more helpful than generic error
-        return "I apologize, but I'm temporarily unable to access my complete knowledge system. For immediate assistance with your inquiry about " + message + ", please contact our concierge desk at extension 9, available 24 hours a day."
+        # No hardcoded fallback answers; just return a generic error
+        return "I apologize, the assistant is currently experiencing issues generating responses. Please try again in a moment."
         
     except Exception as e:
         general_error_time = time.time() - start_time
         print(f"[ERROR] Model error after {general_error_time:.3f}s: {str(e)}")
         print(f"[ERROR] Traceback: {traceback.format_exc()}")
-        
-        # Total processing time on general error
         print(f"[TIMING] Total processing time (with general error): {general_error_time:.3f}s")
-        
-        # Attempt to provide helpful responses even during general errors
-        message_lower = message.lower()
-        
-        if "history" in message_lower:
-            return "Fairmont Tazi Palace Tangier was originally built as a palace residence in the 1920s. The building has been meticulously restored and transformed into a luxury hotel that opened in November 2022, preserving its historical significance while adding modern luxury amenities."
-        
-        elif any(word in message_lower for word in ["contact", "phone", "call", "reach"]):
-            return "You can contact our hotel by dialing 0 from any hotel phone for the operator, or extension 9 for the concierge. For external calls, our hotel can be reached at +212 539 340 850."
-            
-        elif "internet" in message_lower or "wifi" in message_lower:
-            return "Complimentary high-speed WiFi is available throughout the property. The network name is 'Fairmont_Guest' and you can obtain the password from the front desk during check-in."
-        
-        # Default error response
-        return "I apologize for the inconvenience. I'm having difficulty accessing my knowledge system at the moment. Our front desk or concierge team would be delighted to assist you with your question about " + message + ". You can reach them by dialing 9 from your room phone."
+        # No hardcoded fallback answers; just return a generic error
+        return "I apologize, the assistant is currently experiencing issues generating responses. Please try again in a moment."
