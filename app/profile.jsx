@@ -1,292 +1,404 @@
-// app/profile.jsx - User profile and admin monitoring screen
-import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert, ActivityIndicator } from 'react-native';
-import { router } from 'expo-router';
-import { AuthService } from '../src/services/authService';
-import AuthGuard from './components/AuthGuard';
+// app/profile.jsx
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  StyleSheet,
+  Modal,
+  TextInput,
+  Image,
+  Button,
+  Alert,
+} from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import Icon from "react-native-vector-icons/Feather";
+import { useRouter } from "expo-router";
 
-export default function Profile() {
-  const [user, setUser] = useState(null);
-  const [activities, setActivities] = useState([]);
-  const [allActivities, setAllActivities] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showAdminView, setShowAdminView] = useState(false);
+export default function ProfileSettings() {
+  const router = useRouter();
+  // ---- App state (fetch from AuthService or context)
+  const [userName, setUserName] = useState("");
+  const [email, setEmail] = useState("");
+  React.useEffect(() => {
+    (async () => {
+      try {
+        const { AuthService } = await import("../src/services/authService");
+        const user = await AuthService.getUser();
+        setUserName(user?.full_name || "");
+        setEmail(user?.email || "");
+      } catch {
+        setUserName("");
+        setEmail("");
+      }
+    })();
+  }, []);
+  const [avatar, setAvatar] = useState(null);
 
-  useEffect(() => {
-    loadUserData();
+  // Toggles / modals
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [profileModal, setProfileModal] = useState(false);
+  const [passwordModal, setPasswordModal] = useState(false);
+  const [policyModal, setPolicyModal] = useState(false);
+  const [termsModal, setTermsModal] = useState(false);
+
+  // Password fields
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+
+  const pickImage = useCallback(async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.9,
+    });
+    if (!result.canceled && result.assets?.length) {
+      setAvatar(result.assets[0].uri);
+    }
   }, []);
 
-  const loadUserData = async () => {
-    try {
-      setLoading(true);
+  // --- Save handlers (stubbed; plug in your services)
+  const saveProfile = () => {
+    // TODO: call your API with { email, avatar }
+    setProfileModal(false);
+    Alert.alert("Saved", "Your profile changes have been saved.");
+  };
 
-      // Get current user info
-      const userData = await AuthService.getUser();
-      setUser(userData);
-
-      // Get user's own activities
-      const userActivities = await AuthService.getUserActivities(20);
-      setActivities(userActivities);
-
-      // Try to get all activities (admin view)
-      try {
-        const response = await AuthService.authenticatedFetch('http://localhost:8000/api/admin/user-activities?limit=50');
-        if (response.ok) {
-          const adminActivities = await response.json();
-          setAllActivities(adminActivities);
-        }
-      } catch (error) {
-        console.log('Admin access not available:', error.message);
-      }
-    } catch (error) {
-      console.error('Error loading user data:', error);
-      Alert.alert('Error', 'Failed to load user data');
-    } finally {
-      setLoading(false);
+  const savePassword = () => {
+    if (!oldPw || !newPw || !confirmPw) {
+      Alert.alert("Missing info", "Please fill all fields.");
+      return;
     }
+    if (newPw !== confirmPw) {
+      Alert.alert("Mismatch", "New passwords do not match.");
+      return;
+    }
+    // TODO: call your API with { oldPw, newPw }
+    setPasswordModal(false);
+    setOldPw(""); setNewPw(""); setConfirmPw("");
+    Alert.alert("Password changed", "Your password has been updated.");
   };
 
-  const handleSignOut = async () => {
-    Alert.alert(
-      'Sign Out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await AuthService.signout();
-            router.replace('/signin');
-          }
-        }
-      ]
-    );
+  const signOut = async () => {
+    try {
+      if (global.AuthService?.signout) {
+        await global.AuthService.signout();
+      } else {
+        const { AuthService } = await import("../src/services/authService");
+        await AuthService.signout();
+      }
+    } catch (e) {}
+    router.replace("/signin");
   };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleString();
-  };
-
-  if (loading) {
-    return (
-      <AuthGuard>
-        <SafeAreaView style={styles.container}>
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#8B7355" />
-            <Text style={styles.loadingText}>Loading profile...</Text>
-          </View>
-        </SafeAreaView>
-      </AuthGuard>
-    );
-  }
 
   return (
-    <AuthGuard>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#FAFAFA' }}>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
         {/* Header */}
-        <View style={styles.profileHeaderRow}>
-          <TouchableOpacity style={styles.profileBackBtn} onPress={() => router.back()}>
-            <Text style={styles.profileBackArrow}>‹</Text>
+        <View style={styles.headerRow}>
+          <TouchableOpacity hitSlop={{ top: 8, left: 8, right: 8, bottom: 8 }}>
+            <Icon name="arrow-left" size={22} color="#8B7355" />
           </TouchableOpacity>
-          <Text style={styles.profileHeaderTitle}>Settings</Text>
-          <View style={{ width: 32 }} />
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 22 }} />
         </View>
 
-        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 0 }}>
-          {/* Profile Card */}
-          <View style={styles.profileCard}>
-            <View style={styles.profileAvatarCircle}>
-              <Text style={styles.profileAvatarText}>
-                {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'U'}
-              </Text>
-            </View>
-            <View>
-              <Text style={styles.profileName}>{user?.full_name || 'User Name'}</Text>
-              <Text style={styles.profileEmail}>{user?.email || 'user@example.com'}</Text>
-            </View>
-          </View>
-
-          {/* App Settings */}
-          <View style={styles.profileSection}>
-            <Text style={styles.profileSectionTitle}>App Settings</Text>
-            <View style={styles.profileSettingRow}>
-              <Text style={styles.profileSettingLabel}>Push Notifications</Text>
-              <View style={styles.profileSwitch} />
-            </View>
-            <Text style={styles.profileSettingSub}>Receive chat notifications</Text>
-            <View style={styles.profileSettingRow}>
-              <Text style={styles.profileSettingLabel}>Dark Mode</Text>
-              <View style={[styles.profileSwitch, { backgroundColor: '#E0DED9' }]} />
-            </View>
-            <Text style={styles.profileSettingSub}>Use dark theme</Text>
-          </View>
-
-          {/* Account Section */}
-          <View style={styles.profileSection}>
-            <Text style={styles.profileSectionTitle}>Account</Text>
-            <TouchableOpacity style={styles.profileLinkRow}>
-              <Text style={styles.profileLinkText}>Change Password</Text>
-              <Text style={styles.profileLinkArrow}>›</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.profileLinkRow}>
-              <Text style={styles.profileLinkText}>Privacy Policy</Text>
-              <Text style={styles.profileLinkArrow}>›</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.profileLinkRow}>
-              <Text style={styles.profileLinkText}>Terms of Service</Text>
-              <Text style={styles.profileLinkArrow}>›</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Sign Out */}
-          <TouchableOpacity style={styles.profileSignOutBtn} onPress={handleSignOut}>
-            <Text style={styles.profileSignOutText}>Sign Out</Text>
+        {/* Profile */}
+        <View style={styles.profileCard}>
+          <TouchableOpacity onPress={() => setProfileModal(true)} activeOpacity={0.8}>
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: "#8B7355" }]}>
+                <Text style={styles.avatarText}>
+                  {(userName?.trim?.()?.[0] || email?.[0] || "U").toUpperCase()}
+                </Text>
+              </View>
+            )}
           </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
-    </AuthGuard>
+
+          <View style={{ flex: 1 }}>
+            <Text style={styles.profileName}>{userName}</Text>
+            <Text style={styles.profileEmail}>{email}</Text>
+          </View>
+
+          <TouchableOpacity onPress={() => setProfileModal(true)}>
+            <Icon name="edit-2" size={20} color="#8B7355" />
+          </TouchableOpacity>
+        </View>
+
+        {/* App Settings */}
+        <Text style={styles.sectionTitle}>App Settings</Text>
+        <View style={styles.card}>
+          <Row
+            icon="bell"
+            label="Push Notifications"
+            subLabel="Receive chat notifications"
+            toggleValue={notificationsEnabled}
+            onToggle={() => setNotificationsEnabled((v) => !v)}
+          />
+        </View>
+
+        {/* Account */}
+        <Text style={styles.sectionTitle}>Account</Text>
+        <View style={styles.card}>
+          <Row icon="lock" label="Change Password" arrow onPress={() => setPasswordModal(true)} />
+          <Row icon="shield" label="Privacy Policy" arrow onPress={() => setPolicyModal(true)} />
+          <Row icon="file-text" label="Terms of Service" arrow onPress={() => setTermsModal(true)} />
+        </View>
+
+        {/* Sign Out */}
+        <TouchableOpacity style={styles.signOutBtn} onPress={signOut} activeOpacity={0.8}>
+          <Text style={styles.signOutText}>Sign Out</Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* ------------------- MODALS ------------------- */}
+
+      {/* Edit Profile */}
+      <Modal visible={profileModal} animationType="slide" transparent onRequestClose={() => setProfileModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
+
+            <TouchableOpacity style={styles.avatarPicker} onPress={pickImage} activeOpacity={0.8}>
+              {avatar ? (
+                <Image source={{ uri: avatar }} style={styles.avatarLarge} />
+              ) : (
+                <View style={[styles.avatarLarge, { backgroundColor: "#EDE7DF" }]}>
+                  <Icon name="camera" size={22} color="#8B7355" />
+                </View>
+              )}
+              <Text style={styles.avatarPickerText}>Change picture</Text>
+            </TouchableOpacity>
+
+            <TextInput
+              placeholder="Email"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              value={email}
+              onChangeText={setEmail}
+              style={styles.input}
+            />
+
+            <View style={styles.modalActions}>
+              <Button title="Save" onPress={saveProfile} />
+              <Button title="Cancel" color="#b00020" onPress={() => setProfileModal(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Change Password */}
+      <Modal visible={passwordModal} animationType="slide" transparent onRequestClose={() => setPasswordModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Change Password</Text>
+            <TextInput
+              placeholder="Current Password"
+              placeholderTextColor="#6c5c43"
+              secureTextEntry
+              value={oldPw}
+              onChangeText={setOldPw}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="New Password"
+              placeholderTextColor="#6c5c43"
+              secureTextEntry
+              value={newPw}
+              onChangeText={setNewPw}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Confirm New Password"
+              placeholderTextColor="#6c5c43"
+              secureTextEntry
+              value={confirmPw}
+              onChangeText={setConfirmPw}
+              style={styles.input}
+            />
+            <View style={styles.modalActions}>
+              <Button title="Change" onPress={savePassword} />
+              <Button title="Cancel" color="#b00020" onPress={() => setPasswordModal(false)} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Privacy Policy */}
+      <Modal visible={policyModal} animationType="slide" transparent onRequestClose={() => setPolicyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: "75%" }]}>
+            <Text style={styles.modalTitle}>Privacy Policy</Text>
+            <ScrollView style={{ marginBottom: 12 }}>
+              <Text style={styles.legalText}>
+                We value your privacy. Your data is securely stored and never shared with third
+                parties without your consent. You can request deletion of your data at any time.
+                (Replace this text with your real policy.)
+              </Text>
+            </ScrollView>
+            <Button title="Close" onPress={() => setPolicyModal(false)} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Terms of Service */}
+      <Modal visible={termsModal} animationType="slide" transparent onRequestClose={() => setTermsModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: "75%" }]}>
+            <Text style={styles.modalTitle}>Terms of Service</Text>
+            <ScrollView style={{ marginBottom: 12 }}>
+              <Text style={styles.legalText}>
+                By using this app, you agree to use it responsibly and not misuse any features.
+                The app is provided as-is without warranty. (Replace with your real TOS.)
+              </Text>
+            </ScrollView>
+            <Button title="Close" onPress={() => setTermsModal(false)} />
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
+/* ---------------- Row Component ---------------- */
+function Row({ icon, label, subLabel, toggleValue, onToggle, arrow, onPress }) {
+  const Right = () => {
+    if (typeof onToggle === "function") {
+      return (
+        <Switch
+          value={Boolean(toggleValue)}
+          onValueChange={onToggle}
+          trackColor={{ false: "#E5E5E5", true: "#8B7355" }}
+          thumbColor="#fff"
+        />
+      );
+    }
+    if (arrow) return <Icon name="chevron-right" size={20} color="#aaa" />;
+    return null;
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.6 : 1}
+      style={styles.row}
+    >
+      <View style={styles.rowLeft}>
+        <Icon name={icon} size={20} color="#8B7355" style={{ marginRight: 12 }} />
+        <View>
+          <Text style={styles.rowLabel}>{label}</Text>
+          {subLabel ? <Text style={styles.rowSubLabel}>{subLabel}</Text> : null}
+        </View>
+      </View>
+      <Right />
+    </TouchableOpacity>
+  );
+}
+
+/* ---------------- Styles ---------------- */
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#6c757d',
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
 
-  /* Profile Header */
-  profileHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    justifyContent: 'space-between',
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
   },
-  profileBackBtn: {
-    width: 32,
-  },
-  profileBackArrow: {
-    fontSize: 24,
-    color: '#8B7355',
-  },
-  profileHeaderTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#2c2c2c',
-  },
+  headerTitle: { fontSize: 18, fontWeight: "700", color: "#222" },
 
-  /* Profile Card */
   profileCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F6F4F0",
     padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    margin: 12,
+    borderRadius: 16,
+    marginTop: 8,
+    marginBottom: 20,
   },
-  profileAvatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#8B7355',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
+  avatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
   },
-  profileAvatarText: {
-    color: '#fff',
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  profileName: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c2c2c',
-    marginBottom: 4,
-  },
-  profileEmail: {
+  avatarText: { color: "#fff", fontSize: 20, fontWeight: "bold" },
+  profileName: { fontSize: 18, fontWeight: "700", color: "#222" },
+  profileEmail: { fontSize: 14, color: "#777" },
+
+  sectionTitle: {
     fontSize: 14,
-    color: '#6c757d',
-  },
-
-  /* Sections */
-  profileSection: {
-    backgroundColor: '#fff',
-    marginTop: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-  },
-  profileSectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2c2c2c',
+    fontWeight: "700",
+    color: "#222",
     marginBottom: 8,
-  },
-  profileSettingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  profileSettingLabel: {
-    fontSize: 16,
-    color: '#2c2c2c',
-  },
-  profileSwitch: {
-    width: 40,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
-  },
-  profileSettingSub: {
-    fontSize: 12,
-    color: '#6c757d',
+    marginTop: 6,
     marginLeft: 4,
-    marginBottom: 8,
   },
-  profileLinkRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-  },
-  profileLinkText: {
-    fontSize: 16,
-    color: '#2c2c2c',
-  },
-  profileLinkArrow: {
-    fontSize: 18,
-    color: '#6c757d',
+  card: {
+    backgroundColor: "#F6F4F0",
+    borderRadius: 16,
+    marginBottom: 20,
+    overflow: "hidden",
   },
 
-  /* Sign Out */
-  profileSignOutBtn: {
-    margin: 16,
-    backgroundColor: '#dc3545',
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E8E2DA",
+  },
+  rowLeft: { flexDirection: "row", alignItems: "center" },
+  rowLabel: { fontSize: 16, color: "#222", fontWeight: "600" },
+  rowSubLabel: { fontSize: 12, color: "#777", marginTop: 2 },
+
+  signOutBtn: {
+    backgroundColor: "#fff",
+    borderColor: "#F0D5D6",
+    borderWidth: 1,
     padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
+    borderRadius: 16,
+    marginTop: 8,
   },
-  profileSignOutText: {
-    color: '#fff',
+  signOutText: { textAlign: "center", color: "#dc3545", fontWeight: "700", fontSize: 16 },
+
+  // Modals
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.45)",
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+  },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: "#222", marginBottom: 12 },
+  input: {
+    borderWidth: 1,
+    borderColor: "#E5DED5",
+    borderRadius: 12,
+    padding: 12,
     fontSize: 16,
-    fontWeight: '500',
+    marginBottom: 10,
   },
+  modalActions: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
+
+  avatarPicker: { alignItems: "center", marginBottom: 14 },
+  avatarLarge: { width: 88, height: 88, borderRadius: 44, marginBottom: 8 },
+  avatarPickerText: { color: "#8B7355", fontWeight: "600" },
+
+  legalText: { fontSize: 14, color: "#555", lineHeight: 20 },
 });

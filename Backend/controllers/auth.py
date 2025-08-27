@@ -82,6 +82,7 @@ def signin_user(email: str, password: str, db: Session, request: Request = None)
     return {
         "message": "Login successful",
         "user_id": user.id,
+        "full_name": user.full_name,
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer"

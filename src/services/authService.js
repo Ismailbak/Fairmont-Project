@@ -70,7 +70,8 @@ export class AuthService {
 			await this.storeTokens(data.access_token, data.refresh_token);
 			await AsyncStorage.setItem(USER_KEY, JSON.stringify({
 				id: data.user_id,
-				email: email
+				email: email,
+				full_name: data.full_name || ''
 			}));
 
 			return data;
@@ -174,7 +175,7 @@ export class AuthService {
 	// Get user activities
 	static async getUserActivities(limit = 20) {
 		try {
-			const response = await this.authenticatedFetch(`${CONFIG.API_BASE_URL}/api/admin/user-activities?limit=${limit}`);
+			const response = await this.authenticatedFetch(getApiUrl(CONFIG.API.ENDPOINTS.USER_ACTIVITIES) + `?limit=${limit}`);
 			if (response.ok) {
 				return await response.json();
 			}

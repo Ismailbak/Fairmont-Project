@@ -17,31 +17,35 @@ export default function EmployeeDashboard() {
   const [user, setUser] = useState({ name: '', email: '' });
   const [actionLoading, setActionLoading] = useState({});
 
+  // Fetch data function for reuse
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [tasksData, eventsData, meetingsData] = await Promise.all([
+        EmployeeService.getTasks(),
+        EmployeeService.getEvents(),
+        EmployeeService.getMeetings()
+      ]);
+      setTasks(tasksData);
+      setEvents(eventsData);
+      setMeetings(meetingsData);
+      console.log('Fetched tasks:', tasksData);
+    } catch (err) {
+      setError('Failed to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [tasksData, eventsData, meetingsData] = await Promise.all([
-          EmployeeService.getTasks(),
-          EmployeeService.getEvents(),
-          EmployeeService.getMeetings()
-        ]);
-        setTasks(tasksData);
-        setEvents(eventsData);
-        setMeetings(meetingsData);
-      } catch (err) {
-        setError('Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
-      }
-    };
     const fetchUser = async () => {
       try {
-        const userStr = await AsyncStorage.getItem('user');
+        const userStr = await AsyncStorage.getItem('user_data');
         if (userStr) {
           const userObj = JSON.parse(userStr);
-          setUser({ name: userObj.name || '', email: userObj.email || '' });
+          console.log('Loaded user from AsyncStorage:', userObj);
+          setUser({ name: userObj.full_name || userObj.name || '', email: userObj.email || '' });
         }
       } catch {}
     };
@@ -52,32 +56,37 @@ export default function EmployeeDashboard() {
   // Personalized greeting
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 18) return 'Good morning';
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
     return 'Good evening';
   };
 
   // Next meeting highlight
   const nextMeeting = meetings && meetings.length > 0 ? meetings[0] : null;
 
-  // Task progress (dummy: all tasks incomplete)
-  const totalTasks = tasks.length;
-  const completedTasks = 0; // If you have a completed field, update this
+  // Filtered tasks for display (not completed & approved)
+  const filteredTasks = tasks.filter(task => !(task.completed === 1 && task.pending_approval === 0));
+  const totalTasks = filteredTasks.length;
+  const completedTasks = filteredTasks.filter(t => t.completed).length;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F4F0' }}>
       {/* Header Bar with Avatar */}
       <View style={styles.headerBar}>
-        <Text style={{position:'absolute',top:10,left:'50%',transform:[{translateX:-80}],fontSize:22,fontWeight:'700',color:'#8B7355',zIndex:-1}}>Heartist Dashboard</Text>
+        <Text style={{position:'absolute',top:10,left:'50%',transform:[{translateX:-80}],fontSize:22,fontWeight:'700',color:'#8B7355',zIndex:-1}}>
+          {user.name ? `${user.name.split(' ')[0]}'s Dashboard` : 'Employee Dashboard'}
+        </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity onPress={() => router.push('/profile')} activeOpacity={0.7}>
-            <Image
-              source={require('../assets/fairmont-logo.png')}
-              style={styles.avatar}
-            />
+            <View style={[styles.avatar, {backgroundColor: '#E0D6C3', justifyContent: 'center', alignItems: 'center'}]}>
+              <Text style={{fontSize: 28, color: '#8B7355', fontWeight: 'bold'}}>
+                {user.name ? user.name.charAt(0).toUpperCase() : 'E'}
+              </Text>
+            </View>
           </TouchableOpacity>
           <View style={{ marginLeft: 12 }}>
             <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.userName}>{user.name || 'Heartist'}</Text>
+            <Text style={styles.userName}>{user.name}</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.headerBarBtn} onPress={() => router.replace('/signin')}>
@@ -115,8 +124,8 @@ export default function EmployeeDashboard() {
                 <Text style={styles.progressText}>{completedTasks}/{totalTasks}</Text>
               )}
             </View>
-            {tasks.length === 0 && <Text style={styles.cardSubtitle}>No tasks assigned.</Text>}
-            {tasks.map(task => (
+            {filteredTasks.length === 0 && <Text style={styles.cardSubtitle}>No tasks assigned.</Text>}
+            {filteredTasks.map(task => (
               <View key={task.id} style={styles.card}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -126,7 +135,9 @@ export default function EmployeeDashboard() {
                       <Text style={styles.cardSubtitle}>Due: {task.due}</Text>
                     </View>
                   </View>
-                  {task.completed ? (
+                  {(task.completed === 1 && task.pending_approval === 1) ? (
+                    <Text style={{ color: '#F7C873', fontWeight: 'bold', fontSize: 13 }}>Pending Approval</Text>
+                  ) : task.completed === 1 ? (
                     <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>Done</Text>
                   ) : (
                     <TouchableOpacity
@@ -136,7 +147,11 @@ export default function EmployeeDashboard() {
                         setActionLoading(l => ({ ...l, [`task_${task.id}`]: true }));
                         try {
                           await EmployeeService.markTaskDone(task.id);
-                          setTasks(ts => ts.map(t => t.id === task.id ? { ...t, completed: 1 } : t));
+                          setTasks(ts => {
+                            const updated = ts.map(t => t.id === task.id ? { ...t, completed: 1, pending_approval: 1 } : t);
+                            console.log('Tasks after marking done:', updated);
+                            return updated;
+                          });
                         } catch (e) {
                           setError('Failed to mark task as done');
                         } finally {
@@ -229,6 +244,10 @@ export default function EmployeeDashboard() {
             ))}
           </View>
         </>}
+        {/* Manual refresh button */}
+        <TouchableOpacity onPress={fetchData} style={{ marginTop: 16, alignSelf: 'center', backgroundColor: '#8B7355', padding: 10, borderRadius: 8 }}>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Refresh Tasks</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );

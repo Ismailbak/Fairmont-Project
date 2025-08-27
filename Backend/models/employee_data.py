@@ -13,6 +13,7 @@ class Task(Base):
     description = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     completed = Column(Integer, default=0)  # 0 = not done, 1 = done
+    pending_approval = Column(Integer, default=0)  # 0 = not pending, 1 = pending
 
     user = relationship("User", back_populates="tasks")
 
