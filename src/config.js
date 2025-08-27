@@ -1,7 +1,14 @@
 
+import { Platform } from 'react-native';
+
+// API configuration and utilities
 export const CONFIG = {
 	API: {
-		BASE_URL: 'http://10.16.16.64:8080',  // Backend API server port (updated)
+		BASE_URL: Platform.select({
+			ios: 'http://10.16.16.64:8080',     // iOS simulator/device
+			android: 'http://10.0.2.2:8080',    // Android emulator
+			default: 'http://localhost:8080',    // Web/development
+		}),
 		ENDPOINTS: {
 			// Authentication endpoints
 			SIGNUP: '/api/auth/signup',

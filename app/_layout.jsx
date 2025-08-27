@@ -11,6 +11,7 @@ export default function Layout() {
       <Stack.Screen name="signin" options={{ title: 'Login' }} />
   <Stack.Screen name="chatbot" options={{ title: 'Chatbot' }} />
   <Stack.Screen name="employee_dashboard" options={{ title: 'Employee Dashboard' }} />
+  <Stack.Screen name="debug" options={{ title: 'Auth Debug' }} />
       <Stack.Screen name="settings" options={{ headerShown: false }} />
     </Stack>
   );

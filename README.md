@@ -47,6 +47,111 @@ This project uses a real LLM (Large Language Model) for chatbot responses, runni
 
 ---
 
+## Authentication System & Token Refresh
+
+The application uses JWT (JSON Web Token) authentication with access tokens (30-minute expiry) and refresh tokens (7-day expiry).
+
+### Current Implementation
+- Access tokens expire after 30 minutes (configured in `Backend/config/jwt_config.py`)
+- Refresh tokens are generated but not automatically used
+- Users need to sign in again after token expiration
+
+### Future Improvements
+- **Implement Token Refresh Functionality**:
+  - Add a token refresh endpoint in `Backend/routes/auth_routes.py`
+  - Create middleware to detect expired tokens and use refresh tokens
+  - Update frontend authentication service to handle token refresh
+  - Implement automatic re-authentication when tokens expire
+
+### Implementation Steps
+1. Add a refresh token endpoint to the backend:
+   ```python
+   @router.post("/refresh")
+   def refresh_token(request: Request, db: Session = Depends(get_db)):
+       # Get refresh token from Authorization header
+       auth_header = request.headers.get("Authorization")
+       if not auth_header or not auth_header.startswith("Bearer "):
+           raise HTTPException(status_code=401, detail="Invalid token")
+       
+       refresh_token = auth_header.split(" ")[1]
+       # Verify refresh token and generate new access token
+       try:
+           payload = verify_token(refresh_token, token_type="refresh")
+           user_id = payload.get("sub")
+           # Generate new access token
+           new_access_token = create_access_token({"sub": user_id})
+           return {"access_token": new_access_token}
+       except Exception as e:
+           raise HTTPException(status_code=401, detail="Invalid refresh token")
+   ```
+
+2. Update the frontend authentication service to handle token refresh:
+   ```javascript
+   // In src/services/authService.js
+   static async refreshToken() {
+     const refreshToken = await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
+     if (!refreshToken) {
+       throw new Error('No refresh token available');
+     }
+     
+     const response = await fetch(getApiUrl('/api/auth/refresh'), {
+       method: 'POST',
+       headers: {
+         'Authorization': `Bearer ${refreshToken}`,
+         'Content-Type': 'application/json',
+       }
+     });
+     
+     if (!response.ok) {
+       throw new Error('Failed to refresh token');
+     }
+     
+     const data = await response.json();
+     await AsyncStorage.setItem(TOKEN_KEY, data.access_token);
+     return data.access_token;
+   }
+   ```
+
+3. Add an interceptor for API calls to handle token expiration:
+   ```javascript
+   // In a new src/services/apiInterceptor.js file
+   export const authenticatedFetch = async (url, options = {}) => {
+     try {
+       // Try with existing token
+       const token = await AuthService.getToken();
+       const response = await fetch(url, {
+         ...options,
+         headers: {
+           ...options.headers,
+           'Authorization': `Bearer ${token}`,
+           'Content-Type': 'application/json',
+         },
+       });
+       
+       if (response.status === 401) {
+         // Token expired, try to refresh
+         const newToken = await AuthService.refreshToken();
+         // Retry with new token
+         return fetch(url, {
+           ...options,
+           headers: {
+             ...options.headers,
+             'Authorization': `Bearer ${newToken}`,
+             'Content-Type': 'application/json',
+           },
+         });
+       }
+       
+       return response;
+     } catch (error) {
+       // If refresh fails, redirect to login
+       throw error;
+     }
+   };
+   ```
+
+---
+
 # Fairmont Mobile & Backend Platform
 
 An advanced mobile and backend platform for Fairmont Hotels, featuring:

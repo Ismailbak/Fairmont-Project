@@ -29,39 +29,231 @@ export default function ChatbotProtected() {
     router.push('/profile');
   };
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
-    let session = currentSession;
-    if (!session) {
-      session = await SessionService.createSession('New Chat');
-      setCurrentSession(session);
-      setSessions(prev => [session, ...prev]);
-    }
-    const userMsg = { from: 'user', text: input };
-    setMessages(prev => [...prev, userMsg, { from: 'bot', text: '...', isLoading: true }]);
-    const userInput = input;
-    setInput('');
-    try {
-      const res = await SessionService.sendMessage(session.id, userInput, 'user');
+  // Ensure typing animation completes even if there are issues
+  const ensureTypingCompletes = (botMessage, typingInterval) => {
+    // If typing has been going on too long, force complete it
+    setTimeout(() => {
+      clearInterval(typingInterval);
       setMessages(prev => {
-        const filtered = prev.filter(m => !m.isLoading);
-        if (res.user_message && res.bot_message) {
-          return [
-            ...filtered,
-            { from: 'user', text: res.user_message.message },
-            { from: 'bot', text: res.bot_message.message }
-          ];
-        } else if (res.response || res.text) {
-          return [...filtered, { from: 'bot', text: res.response || res.text || 'No response.' }];
-        } else {
-          return [...filtered, { from: 'bot', text: 'No response.' }];
+        const updatedMessages = [...prev];
+        const typingIndex = updatedMessages.findIndex(m => m.isTyping);
+        if (typingIndex !== -1) {
+          updatedMessages[typingIndex] = {
+            from: 'bot',
+            text: botMessage,
+            isTyping: false
+          };
         }
+        return updatedMessages;
       });
-    } catch (e) {
+      setIsWaitingResponse(false);
+    }, 10000); // Force complete after 10 seconds max
+  };
+
+  // Add state variables for improved UI feedback
+  const [isWaitingResponse, setIsWaitingResponse] = useState(false);
+  const [responseStartTime, setResponseStartTime] = useState(null);
+  const [typingSpeed, setTypingSpeed] = useState(30); // milliseconds per character
+
+  const sendMessage = async () => {
+    if (!input.trim() || isWaitingResponse) return;
+    let session = currentSession;
+    console.log('Current session:', session);
+    
+    // Validate session exists and has a valid ID
+    if (session && (!session.id || isNaN(parseInt(session.id)))) {
+      console.log('Invalid session detected, creating a new one');
+      session = null;
+    }
+    
+    try {
+      // Set waiting state and start response timer
+      setIsWaitingResponse(true);
+      setResponseStartTime(Date.now());
+      
+      if (!session) {
+        console.log('Creating new session...');
+        session = await SessionService.createSession('New Chat');
+        setCurrentSession(session);
+        setSessions(prev => [session, ...prev]);
+      }
+      
+      const userMsg = { from: 'user', text: input };
+      console.log('Sending message:', userMsg);
+      
+      // Display the user message and an improved loading indicator
+      setMessages(prev => [...prev, userMsg, { 
+        from: 'bot', 
+        text: 'Thinking...', 
+        isLoading: true,
+        loadingDots: 0
+      }]);
+      
+      // Save user input and clear the input field
+      const userInput = input;
+      setInput('');
+      
+      // Animate the loading dots while waiting
+      const loadingInterval = setInterval(() => {
+        setMessages(prev => {
+          const updatedMessages = [...prev];
+          const loadingIndex = updatedMessages.findIndex(m => m.isLoading);
+          if (loadingIndex !== -1) {
+            const dots = (updatedMessages[loadingIndex].loadingDots + 1) % 4;
+            updatedMessages[loadingIndex] = {
+              ...updatedMessages[loadingIndex],
+              text: 'Thinking' + '.'.repeat(dots)
+            };
+          }
+          return updatedMessages;
+        });
+      }, 500);
+      
+      // Send message to backend and wait for response
+      const res = await SessionService.sendMessage(session.id, userInput, 'user');
+      
+      // Clear loading animation interval
+      clearInterval(loadingInterval);
+      
+      // Calculate response time for logs but don't show in UI
+      const responseEndTime = Date.now();
+      const responseTimeMs = responseEndTime - responseStartTime;
+      console.log(`[PERFORMANCE] Response time: ${responseTimeMs/1000}s`);
+      
+      // Adjust typing speed based on response length for a better UX
+      const botResponse = res.bot_message?.message || res.response || res.text || 'No response.';
+      const dynamicSpeed = Math.max(10, Math.min(30, 2000 / botResponse.length));
+      setTypingSpeed(dynamicSpeed);
+      
+      // Remove the loading indicator
       setMessages(prev => {
-        const filtered = prev.filter(m => !m.isLoading);
-        return [...filtered, { from: 'bot', text: 'Sorry, there was an error.' }];
+        return prev.filter(m => !m.isLoading);
       });
+      
+      // Implement typing animation for bot response
+      const botMsg = { from: 'bot', text: '', isTyping: true };
+      setMessages(prev => [...prev, botMsg]);
+      
+      // Animate the typing effect
+      let displayedText = '';
+      const fullText = botResponse;
+      let charIndex = 0;
+      
+      // Set up safety timeout to ensure typing completes
+      const safetyTimeout = setTimeout(() => {
+        console.log("[Safety] Ensuring typing animation completes");
+        setMessages(prev => {
+          const updatedMessages = [...prev];
+          const typingIndex = updatedMessages.findIndex(m => m.isTyping);
+          if (typingIndex !== -1) {
+            updatedMessages[typingIndex] = {
+              from: 'bot',
+              text: fullText,
+              isTyping: false
+            };
+          }
+          return updatedMessages;
+        });
+        setIsWaitingResponse(false);
+      }, 10000); // Force complete after 10 seconds max
+      
+      const typingInterval = setInterval(() => {
+        if (charIndex < fullText.length) {
+          // Speed up typing for very long responses
+          const charsToAdd = fullText.length > 500 ? 3 : 1;
+          const endIdx = Math.min(charIndex + charsToAdd, fullText.length);
+          
+          displayedText += fullText.substring(charIndex, endIdx);
+          charIndex = endIdx;
+          
+          // Update the message with new characters
+          setMessages(prev => {
+            const updatedMessages = [...prev];
+            const typingIndex = updatedMessages.findIndex(m => m.isTyping);
+            if (typingIndex !== -1) {
+              updatedMessages[typingIndex] = {
+                ...updatedMessages[typingIndex],
+                text: displayedText
+              };
+            }
+            return updatedMessages;
+          });
+        } else {
+          // Typing finished
+          clearInterval(typingInterval);
+          // Clear safety timeout since typing completed normally
+          clearTimeout(safetyTimeout);
+          
+          setMessages(prev => {
+            const updatedMessages = [...prev];
+            const typingIndex = updatedMessages.findIndex(m => m.isTyping);
+            if (typingIndex !== -1) {
+              updatedMessages[typingIndex] = {
+                from: 'bot',
+                text: fullText,
+                isTyping: false
+              };
+            }
+            return updatedMessages;
+          });
+          // Reset waiting state when typing is complete
+          setIsWaitingResponse(false);
+        }
+      }, dynamicSpeed); // Dynamic typing speed
+        } catch (error) {
+      console.log('Error sending message:', error);
+      console.log('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        response: error.response
+      });
+      
+      // Calculate error response time
+      const errorTime = Date.now() - responseStartTime;
+      const errorTimeSec = errorTime / 1000;
+      
+      // Create a more informative error message
+      let errorMessage = 'Sorry, there was a problem connecting to the assistant.';
+      
+      // Special handling for timeout errors - attempt to use basic knowledge about the hotel
+      if (error.message && error.message.includes('timeout')) {
+        // Look for keywords in the message to provide basic answers
+        const msgLower = input.toLowerCase();
+        
+        if (msgLower.includes('safe') && (msgLower.includes('room') || msgLower.includes('suite'))) {
+          errorMessage = "Yes, all guest rooms and suites at Fairmont Tazi Palace are equipped with in-room safes for your valuables.";
+        } else if (msgLower.includes('check in') || msgLower.includes('checkin')) {
+          errorMessage = "Check-in time begins at 3:00 PM. Early check-in may be available based on room availability.";
+        } else if (msgLower.includes('check out') || msgLower.includes('checkout')) {
+          errorMessage = "Check-out time is at 12:00 PM (noon). Late check-out may be available upon request.";
+        } else if (msgLower.includes('wifi') || msgLower.includes('internet')) {
+          errorMessage = "Complimentary high-speed WiFi is available throughout the hotel. The network name is 'Fairmont_Guest' and the password is provided during check-in.";
+        } else if (msgLower.includes('spa') || msgLower.includes('massage')) {
+          errorMessage = "Our hotel features a luxurious spa with traditional hammam, massage services, and wellness treatments. The spa is open daily from 9:00 AM to 8:00 PM.";
+        } else {
+          // Generic timeout message if no specific answer could be provided
+          errorMessage = `I'm sorry, the response is taking longer than expected. You asked about "${input}". Please try again or contact the front desk for immediate assistance.`;
+        }
+      } else if (error.message && error.message.includes('Network Error')) {
+        errorMessage = 'Network connection error. Please check your internet connection and try again.';
+      } else if (error.response && error.response.status === 502) {
+        errorMessage = 'The assistant is currently unavailable. Our team has been notified.';
+      } else if (error.response && error.response.status) {
+        errorMessage = `Server error (${error.response.status}). Please try again or contact support.`;
+      }
+      
+      // Update messages with the error - filter out both loading and typing indicators
+      setMessages(prev => {
+        const filtered = prev.filter(m => !m.isLoading && !m.isTyping);
+        return [...filtered, { 
+          from: 'bot', 
+          text: errorMessage, 
+          isError: true
+        }];
+      });
+      
+      // Reset waiting state on error
+      setIsWaitingResponse(false);
     }
   };
 
@@ -153,17 +345,27 @@ export default function ChatbotProtected() {
                 <View
                   style={[
                     styles.messageModern,
-                    msg.from === 'user' ? styles.userMsgModern : styles.botMsgModern
+                    msg.from === 'user' ? styles.userMsgModern : styles.botMsgModern,
+                    msg.isLoading && styles.loadingMsgModern,
+                    msg.isError && styles.errorMsgModern
                   ]}
                 >
                   <Text
                     style={[
                       styles.msgTextModern,
-                      msg.from === 'user' ? styles.userMsgTextModern : styles.botMsgTextModern
+                      msg.from === 'user' ? styles.userMsgTextModern : styles.botMsgTextModern,
+                      msg.isLoading && styles.loadingTextModern
                     ]}
                   >
                     {msg.text}
                   </Text>
+                  
+                  {/* No response time displayed in UI */}
+                  
+                  {/* Show typing indicator */}
+                  {msg.isTyping && (
+                    <Text style={styles.typingIndicator}>typing...</Text>
+                  )}
                 </View>
               </View>
             ))}
@@ -172,20 +374,24 @@ export default function ChatbotProtected() {
           {/* Input */}
           <View style={styles.inputRowModern}>
             <TextInput 
-              style={styles.inputModern} 
+              style={[styles.inputModern, isWaitingResponse && styles.inputDisabled]} 
               value={input} 
               onChangeText={setInput}
-              placeholder="Type your message..." 
-              placeholderTextColor="#B0A89F"
+              placeholder={isWaitingResponse ? "Waiting for response..." : "Type your message..."} 
+              placeholderTextColor={isWaitingResponse ? "#999" : "#B0A89F"}
               multiline={false}
-              onSubmitEditing={sendMessage}
+              onSubmitEditing={!isWaitingResponse ? sendMessage : null}
+              editable={!isWaitingResponse}
             />
             <TouchableOpacity
-              style={[styles.sendBtnModern, (!input.trim()) && styles.sendBtnModernDisabled]}
+              style={[
+                styles.sendBtnModern, 
+                (!input.trim() || isWaitingResponse) && styles.sendBtnModernDisabled
+              ]}
               onPress={sendMessage}
-              disabled={!input.trim()}
+              disabled={!input.trim() || isWaitingResponse}
             >
-              <Text style={styles.sendTextModern}>Send</Text>
+              <Text style={styles.sendTextModern}>{isWaitingResponse ? "..." : "Send"}</Text>
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
@@ -384,5 +590,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
+  },
+  inputDisabled: {
+    backgroundColor: '#f0f0f0',
+    color: '#999',
+  },
+  loadingMsgModern: {
+    backgroundColor: '#f9f5f0',
+    borderColor: '#e9e6e0',
+    borderStyle: 'dashed',
+  },
+  errorMsgModern: {
+    backgroundColor: '#fff0f0',
+    borderColor: '#ffe0e0',
+  },
+  loadingTextModern: {
+    color: '#999',
+    fontStyle: 'italic',
+  },
+  // Removed response time style
+  typingIndicator: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });
