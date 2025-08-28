@@ -161,50 +161,52 @@ Spa department rated the assistant 10/10 for time-saving and service enhancement
 
 ---
 
+
 ### Housekeeping Department
 
-Data not yet provided. Common topics may include:
-- Turndown service availability
-- Laundry and pressing schedules
-- Cleaning request procedure
-- In-room amenities and replenishment
+1. Turndown Service: Available daily from 6:00 PM to 9:00 PM.
+2. Laundry & Pressing: Same-day service for items received before 10:00 AM.
+3. Cleaning Requests: Contact Housekeeping via room phone or the Fairmont app.
+4. In-Room Amenities: Extra towels, pillows, and toiletries available on request.
 
 ---
+
 
 ### Front Office / Guest Relations Department
 
-Data not yet provided. Common topics may include:
-- Check-in/check-out times
-- Luggage assistance
-- Wake-up call requests
-- Airport transfers
-- Concierge services
+1. Check-in: From 3:00 PM. Early check-in subject to availability.
+2. Check-out: By 12:00 PM. Late check-out on request.
+3. Luggage Assistance: 24/7 porter service available.
+4. Wake-up Calls: Request via room phone or app.
+5. Airport Transfers: Book with concierge or at reception.
+6. Concierge: Available 24/7 for local recommendations and bookings.
 
 ---
+
 
 ### Food & Beverage Department
 
-Data not yet provided. Common topics may include:
-- Restaurant hours and reservation policy
-- Room service menu and availability
-- Special dietary accommodations
-- Breakfast hours
+1. Restaurant Hours: Breakfast 7:00 AM–10:30 AM, Lunch 12:00 PM–3:00 PM, Dinner 6:30 PM–10:30 PM.
+2. Reservations: Recommended for dinner; contact restaurant or concierge.
+3. Room Service: Available 24/7 with full menu.
+4. Dietary Needs: Vegetarian, vegan, gluten-free, and allergy-friendly options available.
+5. Breakfast: Served daily from 7:00 AM to 10:30 AM in Clémentine Restaurant.
 
 ---
+
 
 ### Sales & Marketing Department
 
-Data not yet provided. Common topics may include:
-- Meeting room bookings
-- Event planning contacts
-- Group offers and packages
+1. Meeting Room Bookings: Contact the Events team at events.tangier@fairmont.com.
+2. Event Planning: Dedicated planners available for weddings, conferences, and private events.
+3. Group Offers: Special packages for groups of 10+ rooms; inquire for details.
 
 ---
 
+
 ### IT Department
 
-Data not yet provided. Common topics may include:
-- Wi-Fi support and access
-- Business center availability
-- Troubleshooting room tech (TV, Chromecast, etc.)
+1. Wi-Fi: Complimentary high-speed Wi-Fi throughout the hotel. Login details provided at check-in.
+2. Business Center: Open 24/7 with computers, printers, and office supplies.
+3. In-Room Tech Support: For TV, Chromecast, or device issues, contact the Front Desk or IT via the app.
 
