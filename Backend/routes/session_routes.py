@@ -12,7 +12,8 @@ from models.user import User
 router = APIRouter(prefix="/api/session", tags=["ChatSession"])
 
 class ChatSessionCreateRequest(BaseModel):
-    title: str
+    title: str = None
+    first_message: str = None
 
 class ChatSessionResponse(BaseModel):
     id: int
@@ -24,7 +25,22 @@ class ChatSessionResponse(BaseModel):
 
 @router.post("/new", response_model=ChatSessionResponse)
 def create_session(req: ChatSessionCreateRequest, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-    session = ChatSession(user_id=user.id, title=req.title)
+    # If no title, generate a nominal short title from the first message
+    import re
+    from datetime import datetime
+    def summarize_message(msg):
+        if not msg:
+            return f"Chat on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        # Remove punctuation, keep first 6 words, capitalize
+        msg = re.sub(r'[\n\r]+', ' ', msg)
+        msg = re.sub(r'[^\w\s]', '', msg)
+        words = msg.strip().split()
+        summary = ' '.join(words[:6])
+        if not summary:
+            return f"Chat on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        return summary.capitalize() + ("..." if len(words) > 6 else "")
+    title = req.title or summarize_message(req.first_message)
+    session = ChatSession(user_id=user.id, title=title)
     db.add(session)
     db.commit()
     db.refresh(session)
