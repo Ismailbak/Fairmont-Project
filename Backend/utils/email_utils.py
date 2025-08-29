@@ -1,3 +1,24 @@
+def send_rsvp_email(item_type, item_title, employee_name):
+    sender_email = "ismail.bakraoui0@gmail.com"  # Use your Gmail
+    sender_password = "vybg xxax zikc ffzp"  # Use your Gmail App Password
+    receiver_email = "ismail.bakraoui@emsi-edu.ma"  # Or whoever should get the notification
+    subject = f"RSVP Notification: {item_type} - {item_title}"
+    body = f"""
+    Hello Admin,<br><br>
+    Employee <b>{employee_name}</b> has RSVP'd to the {item_type.lower()} <b>{item_title}</b>.<br><br>
+    Regards,<br>Fairmont System
+    """
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body, 'html'))
+    try:
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, receiver_email, msg.as_string())
+    except Exception as e:
+        print(f"Failed to send RSVP email: {e}")
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart

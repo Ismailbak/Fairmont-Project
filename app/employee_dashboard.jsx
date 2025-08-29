@@ -69,6 +69,10 @@ export default function EmployeeDashboard() {
   const totalTasks = filteredTasks.length;
   const completedTasks = filteredTasks.filter(t => t.completed).length;
 
+  // Filter out RSVP-ed events and meetings for display
+  const filteredEvents = events.filter(event => !event.rsvped);
+  const filteredMeetings = meetings.filter(meeting => !meeting.rsvped);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#F6F4F0' }}>
       {/* Header Bar with Avatar */}
@@ -168,8 +172,8 @@ export default function EmployeeDashboard() {
           </View>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>📅 Upcoming Events</Text>
-            {events.length === 0 && <Text style={styles.cardSubtitle}>No events.</Text>}
-            {events.map(event => (
+            {filteredEvents.length === 0 && <Text style={styles.cardSubtitle}>No events.</Text>}
+            {filteredEvents.map(event => (
               <View key={event.id} style={styles.card}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -179,35 +183,32 @@ export default function EmployeeDashboard() {
                       <Text style={styles.cardSubtitle}>Date: {event.date}</Text>
                     </View>
                   </View>
-                  {event.rsvped ? (
-                    <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>RSVPed</Text>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.minimalBtn}
-                      disabled={!!actionLoading[`event_${event.id}`]}
-                      onPress={async () => {
-                        setActionLoading(l => ({ ...l, [`event_${event.id}`]: true }));
-                        try {
-                          await EmployeeService.rsvpEvent(event.id);
-                          setEvents(ev => ev.map(e => e.id === event.id ? { ...e, rsvped: 1 } : e));
-                        } catch (e) {
-                          setError('Failed to RSVP to event');
-                        } finally {
-                          setActionLoading(l => ({ ...l, [`event_${event.id}`]: false }));
-                        }
-                      }}
-                    >
-                      {actionLoading[`event_${event.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.minimalBtn}
+                    disabled={!!actionLoading[`event_${event.id}`]}
+                    onPress={async () => {
+                      setActionLoading(l => ({ ...l, [`event_${event.id}`]: true }));
+                      try {
+                        await EmployeeService.rsvpEvent(event.id);
+                        // Remove the event from the list immediately after RSVP
+                        setEvents(ev => ev.filter(e => e.id !== event.id));
+                      } catch (e) {
+                        setError('Failed to RSVP to event');
+                      } finally {
+                        setActionLoading(l => ({ ...l, [`event_${event.id}`]: false }));
+                      }
+                    }}
+                  >
+                    {actionLoading[`event_${event.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
+                  </TouchableOpacity>
                 </View>
               </View>
             ))}
           </View>
           <View style={styles.sectionCard}>
             <Text style={styles.sectionTitle}>🤝 Meetings</Text>
-            {meetings.length === 0 && <Text style={styles.cardSubtitle}>No meetings.</Text>}
-            {meetings.map(meeting => (
+            {filteredMeetings.length === 0 && <Text style={styles.cardSubtitle}>No meetings.</Text>}
+            {filteredMeetings.map(meeting => (
               <View key={meeting.id} style={styles.card}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -217,30 +218,26 @@ export default function EmployeeDashboard() {
                       <Text style={styles.cardSubtitle}>Time: {meeting.time}</Text>
                     </View>
                   </View>
-                  {meeting.rsvped ? (
-                    <Text style={{ color: '#3B6E22', fontWeight: 'bold', fontSize: 13 }}>RSVPed</Text>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.minimalBtn}
-                      disabled={!!actionLoading[`meeting_${meeting.id}`]}
-                      onPress={async () => {
-                        setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: true }));
-                        try {
-                          await EmployeeService.rsvpMeeting(meeting.id);
-                          setMeetings(ms => ms.map(m => m.id === meeting.id ? { ...m, rsvped: 1 } : m));
-                        } catch (e) {
-                          setError('Failed to RSVP to meeting');
-                        } finally {
-                          setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: false }));
-                        }
-                      }}
-                    >
-                      {actionLoading[`meeting_${meeting.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.minimalBtn}
+                    disabled={!!actionLoading[`meeting_${meeting.id}`]}
+                    onPress={async () => {
+                      setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: true }));
+                      try {
+                        await EmployeeService.rsvpMeeting(meeting.id);
+                        // Remove the meeting from the list immediately after RSVP
+                        setMeetings(ms => ms.filter(m => m.id !== meeting.id));
+                      } catch (e) {
+                        setError('Failed to RSVP to meeting');
+                      } finally {
+                        setActionLoading(l => ({ ...l, [`meeting_${meeting.id}`]: false }));
+                      }
+                    }}
+                  >
+                    {actionLoading[`meeting_${meeting.id}`] ? <ActivityIndicator size="small" color="#8B7355" /> : <Text style={styles.minimalBtnText}>RSVP</Text>}
+                  </TouchableOpacity>
                 </View>
               </View>
-
             ))}
           </View>
         </>}

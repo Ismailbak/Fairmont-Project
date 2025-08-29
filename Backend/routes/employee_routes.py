@@ -1,3 +1,4 @@
+from utils.email_utils import send_rsvp_email
 ## PATCH endpoints moved below router and response model definitions
 from fastapi import HTTPException
 from sqlalchemy.exc import NoResultFound
@@ -103,6 +104,8 @@ def rsvp_event(event_id: int, current_user: User = Depends(get_current_active_us
     event.rsvped = 1
     db.commit()
     db.refresh(event)
+    # Send RSVP email notification
+    send_rsvp_email("Event", event.title, current_user.full_name or current_user.email)
     return event
 
 # --- PATCH: RSVP to meeting ---
@@ -114,6 +117,8 @@ def rsvp_meeting(meeting_id: int, current_user: User = Depends(get_current_activ
     meeting.rsvped = 1
     db.commit()
     db.refresh(meeting)
+    # Send RSVP email notification
+    send_rsvp_email("Meeting", meeting.title, current_user.full_name or current_user.email)
     return meeting
 
 @router.get("/tasks", response_model=List[TaskResponse])
@@ -134,11 +139,13 @@ def get_tasks(current_user: User = Depends(get_current_active_user), db: Session
 
 @router.get("/events", response_model=List[EventResponse])
 def get_events(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    return db.query(Event).all()
+    # Only return events the user has NOT RSVPed to
+    return db.query(Event).filter(Event.rsvped == 0).all()
 
 @router.get("/meetings", response_model=List[MeetingResponse])
 def get_meetings(current_user: User = Depends(get_current_active_user), db: Session = Depends(get_db)):
-    return db.query(Meeting).all()
+    # Only return meetings the user has NOT RSVPed to
+    return db.query(Meeting).filter(Meeting.rsvped == 0).all()
 
 # Admin endpoints for adding data (to be used by admin dashboard)
 class TaskCreate(BaseModel):
